@@ -5,3 +5,19 @@
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
+
+export function MessageDialog(arg1, arg2) {
+  return window['go']['main']['App']['MessageDialog'](arg1, arg2);
+}
+
+export function OpenDirectoryDialog() {
+  return window['go']['main']['App']['OpenDirectoryDialog']();
+}
+
+export function OpenMultipleFilesDialog() {
+  return window['go']['main']['App']['OpenMultipleFilesDialog']();
+}
+
+export function SetExpiry(arg1) {
+  return window['go']['main']['App']['SetExpiry'](arg1);
+}
