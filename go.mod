@@ -1,4 +1,4 @@
-module win-pdf
+module github.com/cg917658910/win-pdf
 
 go 1.23
 
