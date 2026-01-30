@@ -216,7 +216,8 @@
         }
       } catch (err) {
         LogPrint('OpenDirectoryDialog error', err)
-        await MessageDialog('提示', '选择文件夹已取消或出错')
+        await MessageDialog('提示', '开发中')
+        //await MessageDialog('提示', '选择文件夹已取消或出错')
       }
     })()
   }

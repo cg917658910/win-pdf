@@ -12,8 +12,10 @@ import (
 func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText, unsupportedText string) {
 
 	// quote strings to be safely embedded into JS code
-	qExpired := strconv.Quote(experiredText)
-	qUnsupported := strconv.Quote(unsupportedText)
+	// Use QuoteToASCII so non-ASCII characters (例如中文) are escaped as \uXXXX,
+	// 保证生成的 JS 代码只包含 ASCII，从而避免在 PDF 中出现编码/乱码问题。
+	qExpired := strconv.QuoteToASCII(experiredText)
+	qUnsupported := strconv.QuoteToASCII(unsupportedText)
 
 	js := fmt.Sprintf(`(function(){
   try{
@@ -33,9 +35,11 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
         var ocgs = this.getOCGs();
         for (var i = 0; i < ocgs.length; i++) {
           var o = ocgs[i];
-          if (o && o.name === ocgName) {
+		  if (o && o.name === ocgName) {
             o.state = inRange;
-          }
+          }else{
+		  	o.state = !inRange;  
+		 	}
         }
       }
     } catch (e) { app.alert(%s + ' ' + e); }
@@ -61,53 +65,4 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
 
 	// Set OpenAction to the JavaScript action indirect reference.
 	ctx.RootDict["OpenAction"] = *iref
-}
-
-func injectTimeJS(ctx *model.Context, start, end time.Time) {
-	js := fmt.Sprintf(`(function () {
-  try {
-  app.alert("JS activated");
-    var start = new Date("%s");
-    var end   = new Date("%s");
-    var now   = new Date();
-
-    // Toggle global OCG visibility by flipping the state property on the named OCG.
-    try {
-      var ocgName = "OCG_Normal";
-      if (typeof this.getOCGs === "function") {
-        var ocgs = this.getOCGs();
-        for (var i = 0; i < ocgs.length; i++) {
-          var o = ocgs[i];
-          if (o && o.name === ocgName) {
-		  app.alert("Found OCG: " + ocgName);
-            if (now >= start && now <= end) {
-			app.alert("In range: enabling OCG");
-              o.state = true;
-            } else {
-			 app.alert("Out of range: disabling OCG");
-              o.state = true;
-            }
-          }
-        }
-      }
-    } catch (e) { }
-
-  } catch (e) { }
-})();`, start.Format(time.RFC3339), end.Format(time.RFC3339))
-
-	iref, err := ctx.IndRefForNewObject(types.Dict{
-		"S":  types.Name("JavaScript"),
-		"JS": types.StringLiteral(js),
-	})
-	if err != nil {
-		fmt.Printf("injectTimeJS: %v\n", err)
-	}
-	ctx.RootDict["Names"] = types.Dict{
-		"JavaScript": types.Dict{
-			"Names": types.Array{
-				types.StringLiteral("docjs"),
-				*iref,
-			},
-		},
-	}
 }
