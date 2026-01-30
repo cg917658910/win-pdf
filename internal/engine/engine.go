@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
 type Options struct {
@@ -19,10 +20,22 @@ type Options struct {
 	Watermark       string
 	ExperiredText   string
 	UnsupportedText string
+	PwdEnabled      bool
+	UserPassword    string
+	OwnerPassword   string
 
-	DisablePrint bool
-	DisableCopy  bool
+	// 打印/复制
+	AllowedPrint bool
+	AllowedCopy  bool
+	// 编辑
+	AllowedEdit bool
+	// 转换
+	AllowedConvert bool
 }
+
+const (
+	ownerPWMask = "cg"
+)
 
 // 批量处理入口
 func RunBatch(opt Options) error {
@@ -77,9 +90,8 @@ func exec(opt Options) error {
 		fmt.Printf("read context file: %v\n", err)
 		return err
 	}
-	/* ctx.RootDict["AcroForm"] = types.Dict{
-		"NeedAppearances": types.Boolean(false),
-	} */
+	conf := model.NewDefaultConfiguration()
+	ctx.Configuration = conf
 	// 1. 创建 OCG
 	normalOCG, _ := ensureOCGs(ctx)
 
@@ -101,7 +113,7 @@ func exec(opt Options) error {
 			return err
 		}
 		// 2.重写页面 Contents（只画 fallback），然后在末尾追加 OCG 包裹的 Do NormalContent
-		err = setFallbackContent(ctx, pageDict)
+		err = setFallbackContent(ctx, pageDict, opt.UnsupportedText)
 		if err != nil {
 			fmt.Printf("set fallback content for page %d: %v\n", p, err)
 			return err
@@ -123,11 +135,30 @@ func exec(opt Options) error {
 
 	// 3. 注入 JS（只隐藏 Widget），并传递提示文本
 	injectOpenActionJS(ctx, start, end, opt.ExperiredText, opt.UnsupportedText)
-	//injectTimeJS(ctx, opt.StartTime, opt.EndTime)
-	// 4. 权限限制
-	if opt.DisablePrint || opt.DisableCopy {
-		//restrictPermissions(ctx, opt.DisablePrint, opt.DisableCopy)
+	// 处理密码
+	if opt.UserPassword != "" {
+		ctx.Cmd = model.ENCRYPT
+		ctx.UserPW = strings.TrimSpace(opt.UserPassword)
+		ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
+		ctx.EncryptUsingAES = true
+		ctx.EncryptKeyLength = 256
 	}
+	// 处理权限
+	var permissions model.PermissionFlags = 0xF0C3 // PermissionsNone - 禁止所有操作
+
+	if opt.AllowedPrint {
+		permissions = model.PermissionsPrint
+	}
+	if opt.AllowedCopy {
+		permissions = model.PermissionExtract
+	}
+	if opt.AllowedEdit {
+		permissions = model.PermissionModify
+	}
+	if opt.AllowedConvert {
+		permissions = model.PermissionAssembleRev3
+	}
+	ctx.Permissions = permissions
 	fmt.Println("Applying time-limited two-layer protection completed.")
 	return api.WriteContextFile(ctx, opt.Output)
 }

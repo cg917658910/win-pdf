@@ -12,8 +12,13 @@ export namespace engine {
 	    Watermark: string;
 	    ExperiredText: string;
 	    UnsupportedText: string;
-	    DisablePrint: boolean;
-	    DisableCopy: boolean;
+	    PwdEnabled: boolean;
+	    UserPassword: string;
+	    OwnerPassword: string;
+	    AllowedPrint: boolean;
+	    AllowedCopy: boolean;
+	    AllowedEdit: boolean;
+	    AllowedConvert: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Options(source);
@@ -30,8 +35,13 @@ export namespace engine {
 	        this.Watermark = source["Watermark"];
 	        this.ExperiredText = source["ExperiredText"];
 	        this.UnsupportedText = source["UnsupportedText"];
-	        this.DisablePrint = source["DisablePrint"];
-	        this.DisableCopy = source["DisableCopy"];
+	        this.PwdEnabled = source["PwdEnabled"];
+	        this.UserPassword = source["UserPassword"];
+	        this.OwnerPassword = source["OwnerPassword"];
+	        this.AllowedPrint = source["AllowedPrint"];
+	        this.AllowedCopy = source["AllowedCopy"];
+	        this.AllowedEdit = source["AllowedEdit"];
+	        this.AllowedConvert = source["AllowedConvert"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

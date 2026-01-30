@@ -1,7 +1,10 @@
 package engine
 
 import (
+	"encoding/hex"
 	"fmt"
+	"strings"
+	"unicode/utf16"
 
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
@@ -84,21 +87,104 @@ func attachXObjectToPage(
 	}
 }
 
-func setFallbackContent(ctx *model.Context, page types.Dict) error {
-	content := `
-q
-1 1 1 rg
-0 0 10000 10000 re
-f
+func setFallbackContent(ctx *model.Context, page types.Dict, fallbackText string) error {
+	// Ensure Resources exists
+	var res types.Dict
+	if r, ok := page["Resources"].(types.Dict); ok {
+		res = r
+	} else {
+		res = types.Dict{}
+		page["Resources"] = res
+	}
 
-0 0 0 rg
+	// Ensure Font dictionary
+	var fonts types.Dict
+	if f, ok := res["Font"].(types.Dict); ok {
+		fonts = f
+	} else {
+		fonts = types.Dict{}
+		res["Font"] = fonts
+	}
+
+	// Create a CJK Type0 font referencing STSong-Light with UniGB-UCS2-H encoding
+	// Many PDF viewers will map this to a local CJK font to render Chinese.
+	cidDict := types.Dict{
+		"Type":     types.Name("Font"),
+		"Subtype":  types.Name("CIDFontType2"),
+		"BaseFont": types.Name("STSong-Light"),
+		"CIDSystemInfo": types.Dict{
+			"Registry":   types.StringLiteral("Adobe"),
+			"Ordering":   types.StringLiteral("GB1"),
+			"Supplement": types.Integer(2),
+		},
+	}
+	cidRef, err := ctx.IndRefForNewObject(cidDict)
+	if err != nil {
+		return err
+	}
+	type0 := types.Dict{
+		"Type":            types.Name("Font"),
+		"Subtype":         types.Name("Type0"),
+		"BaseFont":        types.Name("STSong-Light"),
+		"Encoding":        types.Name("UniGB-UCS2-H"),
+		"DescendantFonts": types.Array{*cidRef},
+	}
+	type0Ref, err := ctx.IndRefForNewObject(type0)
+	if err != nil {
+		return err
+	}
+
+	fonts["F1"] = *type0Ref
+	res["Font"] = fonts
+	page["Resources"] = res
+
+	// Compute media box to position text at top-left
+	var xmin, _, _, ymax float64 = 0, 0, 595, 842 // default A4-like
+	if mb, ok := page["MediaBox"].(types.Array); ok && len(mb) >= 4 {
+		if v, ok := mb[0].(types.Float); ok {
+			xmin = float64(v)
+		}
+		/* if v, ok := mb[1].(types.Float); ok {
+			ymin = float64(v)
+		}
+		if v, ok := mb[2].(types.Float); ok {
+			xmax = float64(v)
+		} */
+		if v, ok := mb[3].(types.Float); ok {
+			ymax = float64(v)
+		}
+	}
+	// Position: left margin 40, top margin 40
+	leftMargin := 40.0
+	topMargin := 40.0
+	x := xmin + leftMargin
+	y := ymax - topMargin
+
+	// Font size smaller
+	fontSize := 12.0
+
+	// Encode text to UTF-16BE with BOM
+	utf16codes := utf16.Encode([]rune(fallbackText))
+	buf := make([]byte, 0, 2*(len(utf16codes)+1))
+	// BOM FE FF
+	buf = append(buf, 0xFE, 0xFF)
+	for _, cp := range utf16codes {
+		buf = append(buf, byte(cp>>8), byte(cp&0xFF))
+	}
+	hexstr := strings.ToUpper(hex.EncodeToString(buf))
+
+	// Build content stream: gray color 0.5, set font /F1 fontSize, move to computed position, show hex string (left-aligned on first line)
+	content := fmt.Sprintf(`
+q
+0.5 0.5 0.5 rg
 BT
-/F1 24 Tf
-200 500 Td
-(FILE LOCKED - USE SUPPORTED PDF READER) Tj
+/F1 %d Tf
+%f %f Td
+<%s> Tj
 ET
 Q
-`
+`, int(fontSize), x, y, hexstr)
+
 	sd, err := ctx.NewStreamDictForBuf([]byte(content))
 	if err != nil {
 		return err

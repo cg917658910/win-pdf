@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cg917658910/win-pdf/internal/auth"
 	"github.com/cg917658910/win-pdf/internal/engine"
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
@@ -62,7 +63,30 @@ func (a *App) SetExpiry(opts engine.Options) string {
 	if err != nil {
 		return fmt.Sprintf("错误：处理文件时出错：%v", err)
 	}
+	// 至少6位
+	if strings.TrimSpace(opts.UserPassword) != "" && len(opts.UserPassword) < 6 {
+		return fmt.Sprintf("错误：用户密码长度至少6位")
+	}
 	return fmt.Sprintf("设置成功")
+}
+
+// IsRegistered 返回当前是否已注册（调用 internal/auth）
+func (a *App) IsRegistered() bool {
+	return auth.IsRegistered()
+}
+
+// GetMachineCode 返回当前机器码
+func (a *App) GetMachineCode() (string, error) {
+	return auth.GetMachineCode()
+}
+
+// Register 尝试使用注册码注册应用
+func (a *App) Register(code string) (string, error) {
+	if err := auth.Register(code); err != nil {
+		rt.LogPrintf(a.ctx, "Register error: %v", err)
+		return "", err
+	}
+	return "注册成功", nil
 }
 
 // OpenDirectoryDialog 打开原生选择目录对话框并返回用户选择的目录路径
@@ -79,7 +103,9 @@ func (a *App) OpenDirectoryDialog() (string, error) {
 
 // OpenMultipleFilesDialog 打开原生多文件选择对话框并返回所选文件路径列表
 func (a *App) OpenMultipleFilesDialog() ([]string, error) {
-	paths, err := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{Title: "选择文件"})
+	paths, err := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{Title: "选择文件", Filters: []rt.FileFilter{
+		{DisplayName: "PDF 文件", Pattern: "*.pdf"},
+	}})
 	if err != nil {
 		rt.LogPrintf(a.ctx, "OpenMultipleFilesDialog error: %v", err)
 		return nil, err
@@ -104,7 +130,7 @@ func NewAppMenu(app *App) *menu.Menu {
 
 	FileMenu := appMenu.AddSubmenu("文件")
 	FileMenu.AddText("选择文件", keys.CmdOrCtrl("o"), func(_ *menu.CallbackData) {
-		// do something
+		//app.OpenMultipleFilesDialog()
 	})
 	FileMenu.AddSeparator()
 	FileMenu.AddText("退出", keys.CmdOrCtrl("q"), func(_ *menu.CallbackData) {
@@ -113,17 +139,39 @@ func NewAppMenu(app *App) *menu.Menu {
 	})
 	// 注册menu
 	registerMenu := appMenu.AddSubmenu("注册")
-	registerMenu.AddText("注册", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
-		// do something
+	registerMenu.AddText("注册", nil, func(_ *menu.CallbackData) {
+		// 判断是否注册
+		if auth.IsRegistered() {
+			// 提示已经注册
+			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
+				Title:   "注册信息",
+				Message: "软件已注册，感谢您的支持！",
+			})
+			return
+		}
+		// 触发前端事件，前端负责弹出注册输入框
+		rt.EventsEmit(app.ctx, "menu:register")
 	})
-	registerMenu.AddText("在线购买", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
+	registerMenu.AddText("在线购买", nil, func(_ *menu.CallbackData) {
 		// do something
+		// 打开购买页面
+		rt.BrowserOpenURL(app.ctx, "https://baidu.com")
 	})
-	registerMenu.AddText("郑重声明", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
+	registerMenu.AddText("郑重声明", nil, func(_ *menu.CallbackData) {
 		// do something
+		// 显示：本软件已在中华人民共和国国家版权局登记，未经许可，禁止任何单位和个人进行售卖、传播，违者必究！
+		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
+			Title:   "郑重声明",
+			Message: "本软件已在中华人民共和国国家版权局登记，未经许可，禁止任何单位和个人进行售卖、传播，违者必究！",
+		})
 	})
-	registerMenu.AddText("联系我们", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
+	registerMenu.AddText("联系我们", nil, func(_ *menu.CallbackData) {
 		// do something
+		//显示邮箱地址
+		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
+			Title:   "联系我们",
+			Message: "如有任何问题或建议，请联系邮箱：",
+		})
 	})
 
 	return appMenu
