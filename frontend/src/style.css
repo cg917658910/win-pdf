@@ -20,14 +20,6 @@ body {
     url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
 }
 
-@font-face {
-    font-family: "Source Han Sans SC";
-    font-style: normal;
-    font-weight: 400;
-    src: local(""),
-         url("assets/fonts/SourceHanSansSC-Regular.otf") format("opentype");
-}
-
 #app {
     height: 100vh;
     text-align: center;
