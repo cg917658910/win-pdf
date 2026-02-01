@@ -9,7 +9,6 @@ export namespace engine {
 	    StartTime: any;
 	    // Go type: time
 	    EndTime: any;
-	    Watermark: string;
 	    ExperiredText: string;
 	    UnsupportedText: string;
 	    PwdEnabled: boolean;
@@ -32,7 +31,6 @@ export namespace engine {
 	        this.OutputDir = source["OutputDir"];
 	        this.StartTime = this.convertValues(source["StartTime"], null);
 	        this.EndTime = this.convertValues(source["EndTime"], null);
-	        this.Watermark = source["Watermark"];
 	        this.ExperiredText = source["ExperiredText"];
 	        this.UnsupportedText = source["UnsupportedText"];
 	        this.PwdEnabled = source["PwdEnabled"];
