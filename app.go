@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/cg917658910/win-pdf/internal/auth"
 	"github.com/cg917658910/win-pdf/internal/engine/v2"
+	"github.com/cg917658910/win-pdf/internal/license"
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	rt "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -27,6 +29,16 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.initConfig()
+}
+func (a *App) initConfig() {
+	pubPath := "./confg/server_public.pem"
+	if _, err := os.Stat(pubPath); err != nil {
+		rt.LogErrorf(a.ctx, "公钥文件 %s 未找到 err %s", pubPath, err)
+	}
+	if err := license.LoadPublicKeyFromFile(pubPath); err != nil {
+		rt.LogErrorf(a.ctx, "加载公钥失败: %v", err)
+	}
 }
 
 // Greet returns a greeting for the given name
@@ -72,19 +84,24 @@ func (a *App) SetExpiry(opts engine.Options) string {
 
 // IsRegistered 返回当前是否已注册（调用 internal/auth）
 func (a *App) IsRegistered() bool {
-	return auth.IsRegistered()
+	isActivated, _, err := license.IsActivated()
+	if err != nil {
+		rt.LogPrintf(a.ctx, "IsRegistered error: %v", err)
+		return false
+	}
+	return isActivated
 }
 
 // GetMachineCode 返回当前机器码
 func (a *App) GetMachineCode() (string, error) {
-	return auth.GetMachineCode()
+	return license.GetMachineCode()
 }
 
 // Register 尝试使用注册码注册应用
 func (a *App) Register(code string) (string, error) {
-	if err := auth.Register(code); err != nil {
+	if err := license.ActivateWithRegCode(code); err != nil {
 		rt.LogPrintf(a.ctx, "Register error: %v", err)
-		return "", err
+		return "", errors.New("注册失败")
 	}
 	return "注册成功", nil
 }
@@ -141,7 +158,11 @@ func NewAppMenu(app *App) *menu.Menu {
 	registerMenu := appMenu.AddSubmenu("注册")
 	registerMenu.AddText("注册", nil, func(_ *menu.CallbackData) {
 		// 判断是否注册
-		if auth.IsRegistered() {
+		isActivated, _, err := license.IsActivated()
+		if err != nil {
+			rt.LogPrintf(app.ctx, "检查注册状态失败: %v", err)
+		}
+		if isActivated {
 			// 提示已经注册
 			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 				Title:   "注册信息",
