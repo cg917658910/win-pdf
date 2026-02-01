@@ -3,11 +3,9 @@ package main
 import (
 	"embed"
 
-	"github.com/cg917658910/win-pdf/internal/license"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	rt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
@@ -16,19 +14,10 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
-	title := "易诚无忧PDF文档有效期设置工具"
-	isActivated, _, err1 := license.IsActivated()
-	if err1 != nil {
-		rt.LogPrintf(app.ctx, "检查注册状态失败: %v", err1)
-	}
-	if isActivated {
-		title += "(已注册)"
-	} else {
-		title += "(未注册)"
-	}
+
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  title,
+		Title:  app.GetTitleWithRegStatus(),
 		Width:  1280,
 		Height: 800,
 		AssetServer: &assetserver.Options{

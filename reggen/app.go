@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"reggen/license"
+
+	rt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -19,9 +23,33 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.initConfig()
+}
+func (a *App) initConfig() {
+	priPath := "./config/server_private.pem"
+	if _, err := os.Stat(priPath); err != nil {
+		rt.LogErrorf(a.ctx, "私钥文件 %s 未找到 err %s", priPath, err)
+	}
+	if err := license.LoadPrivateKeyFromFile(priPath); err != nil {
+		rt.LogErrorf(a.ctx, "加载私钥失败: %v", err)
+	}
 }
 
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
+}
+
+func (a *App) GenerateRegCode(machineCode string, expiryUnix int64) (string, error) {
+	return license.GenerateRegCode(machineCode, expiryUnix)
+}
+
+func (a *App) MessageDialog(title, message string) (string, error) {
+	// 可选设置类型/按钮等，使用默认选项显示信息
+	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{Title: title, Message: message})
+	if err != nil {
+		rt.LogPrintf(a.ctx, "MessageDialog error: %v", err)
+		return "", err
+	}
+	return res, nil
 }

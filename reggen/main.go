@@ -17,7 +17,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "reggen",
+		Title:  "易诚无忧PDF文档有效期设置工具-注册机",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{

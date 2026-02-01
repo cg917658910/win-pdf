@@ -6,6 +6,10 @@ export function GetMachineCode() {
   return window['go']['main']['App']['GetMachineCode']();
 }
 
+export function GetTitleWithRegStatus() {
+  return window['go']['main']['App']['GetTitleWithRegStatus']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }

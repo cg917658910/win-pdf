@@ -123,11 +123,10 @@
   </template>
   
   <script setup>
-  import { ref, onMounted } from "vue"
-  import { SetExpiry } from "../wailsjs/go/main/App.js"
-  import { engine } from "../wailsjs/go/models"
-  import { CanResolveFilePaths, ResolveFilePaths, LogPrint, EventsOn } from "../wailsjs/runtime/runtime.js"
-  import { OpenDirectoryDialog, MessageDialog, OpenMultipleFilesDialog, IsRegistered, GetMachineCode, Register } from "../wailsjs/go/main/App.js"
+  import { onMounted, ref } from "vue"
+import { GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
+import { engine } from "../wailsjs/go/models"
+import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTitle } from "../wailsjs/runtime/runtime.js"
   
   const activeTab = ref("file")
   
@@ -185,7 +184,7 @@
         }
       } catch (err) {
         console.error('OpenMultipleFilesDialog error', err)
-        await MessageDialog('提示', '选择文件已取消或出错')
+        await MessageDialog('提示', err)
       }
     })()
   }
@@ -364,6 +363,11 @@
           return
         }
         showRegisterModal.value = true
+      })
+      // 监听用户注册成功事件，获取最新标题并更新标题
+      EventsOn('user:registered', async () => {
+        const appTitle = await GetTitleWithRegStatus()
+        await WindowSetTitle(appTitle)
       })
     } catch (e) {
       console.debug('EventsOn error', e)

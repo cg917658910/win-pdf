@@ -95,6 +95,7 @@ func main() {
 	sigB64 := base64.StdEncoding.EncodeToString(sig)
 	full := fmt.Sprintf("%s|%s", payload, sigB64)
 	reg := base64.StdEncoding.EncodeToString([]byte(full))
+	fmt.Println("registration code:")
 	fmt.Println(reg)
 }
 

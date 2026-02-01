@@ -1,6 +1,7 @@
 build/bin
 node_modules
-*/dist
-*/wailsjs
+dist/
+wailsjs
 *.pdf
 *.pem
+reggen/frontend/wailsjs/runtime/runtime.d.ts

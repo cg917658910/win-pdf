@@ -71,14 +71,23 @@ func (a *App) SetExpiry(opts engine.Options) string {
 	if opts.EndTime.Sub(opts.StartTime) > 10*365*24*time.Hour {
 		return fmt.Sprintf("错误：有效期区间最长为10年")
 	}
-	err := engine.RunBatch(opts)
-	if err != nil {
-		return fmt.Sprintf("错误：处理文件时出错：%v", err)
-	}
 	// 至少6位
 	if strings.TrimSpace(opts.UserPassword) != "" && len(opts.UserPassword) < 6 {
 		return fmt.Sprintf("错误：用户密码长度至少6位")
 	}
+	// 未注册用户只能处理最多1个文件
+	isActivated, _, err := license.IsActivated()
+	if err != nil {
+		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err)
+	}
+	if !isActivated && filesNum > 1 {
+		return fmt.Sprintf("错误：未注册用户只能处理1个文件，请注册后使用更多功能")
+	}
+	err = engine.RunBatch(opts)
+	if err != nil {
+		return fmt.Sprintf("错误：处理文件时出错：%v", err)
+	}
+
 	return fmt.Sprintf("设置成功")
 }
 
@@ -103,6 +112,9 @@ func (a *App) Register(code string) (string, error) {
 		rt.LogPrintf(a.ctx, "Register error: %v", err)
 		return "", errors.New("注册失败")
 	}
+	// 发送事件，通知前端更新注册状态
+	rt.EventsEmit(a.ctx, "user:registered")
+
 	return "注册成功", nil
 }
 
@@ -127,18 +139,50 @@ func (a *App) OpenMultipleFilesDialog() ([]string, error) {
 		rt.LogPrintf(a.ctx, "OpenMultipleFilesDialog error: %v", err)
 		return nil, err
 	}
+	// 未注册用户只能选择最多1个文件&&单个文件大小不能超过500kb
+	isActivated, _, err := license.IsActivated()
+	if err != nil {
+		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err)
+	}
+	if !isActivated {
+		if len(paths) > 1 {
+			return nil, errors.New("未注册用户只能选择1个文件")
+		}
+		for _, p := range paths {
+			info, err := os.Stat(p)
+			if err != nil {
+				rt.LogPrintf(a.ctx, "获取文件信息失败: %v", err)
+				return nil, errors.New("获取文件信息失败")
+			}
+			if info.Size() > 500*1024 {
+				return nil, errors.New("未注册用户单个文件大小不能超过500KB")
+			}
+		}
+	}
 	return paths, nil
 }
 
 // MessageDialog 使用 Wails 原生对话框显示消息并返回用户选择结果
 func (a *App) MessageDialog(title, message string) (string, error) {
-	// 可选设置类型/按钮等，使用默认选项显示信息
 	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{Title: title, Message: message})
 	if err != nil {
 		rt.LogPrintf(a.ctx, "MessageDialog error: %v", err)
 		return "", err
 	}
 	return res, nil
+}
+func (a *App) GetTitleWithRegStatus() string {
+	title := "易诚无忧PDF文档有效期设置工具"
+	isActivated, _, err1 := license.IsActivated()
+	if err1 != nil {
+		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err1)
+	}
+	if isActivated {
+		title += "(已注册)"
+	} else {
+		title += "(未注册)"
+	}
+	return title
 }
 
 // window menu
@@ -193,6 +237,16 @@ func NewAppMenu(app *App) *menu.Menu {
 			Title:   "联系我们",
 			Message: "如有任何问题或建议，请联系邮箱：",
 		})
+	})
+	registerMenu.AddText("注销", nil, func(_ *menu.CallbackData) {
+		license.Deactivate()
+		// 提示注销成功
+		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
+			Title:   "注销成功",
+			Message: "软件已成功注销，请重新启动软件。",
+		})
+		//发送事件，通知前端更新注册状态
+		rt.EventsEmit(app.ctx, "user:unregistered")
 	})
 
 	return appMenu

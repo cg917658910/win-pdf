@@ -4,6 +4,8 @@ import {engine} from '../models';
 
 export function GetMachineCode():Promise<string>;
 
+export function GetTitleWithRegStatus():Promise<string>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function IsRegistered():Promise<boolean>;
