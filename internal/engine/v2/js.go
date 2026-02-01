@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 )
 
 func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText, unsupportedText string) {
+	escapedExpiredText := escapeJSString(experiredText)
 
 	js := fmt.Sprintf(`(function(){
   try{
@@ -19,41 +21,37 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
     var inRange = (now >= start && now <= end);
     try {
       if(!inRange){
-		app.alert({
-			cMsg: "%s"
-			});	
-		this.closeDoc(true);
+        app.alert({
+            cMsg: "%s",
+          });	
+        this.closeDoc(true);
         return;  
       }
      if (typeof this.getOCGs === "function") {
         var ocgs = this.getOCGs();
-		app.alert("Found " + ocgs.length + " OCGs.");
         for (var i = 0; i < ocgs.length; i++) {
           var o = ocgs[i];
           o.state = false;
         }
       }
-    } catch (e) { app.alert(%s + ' ' + e); }
+    } catch (e) { app.alert(e); }
     } catch (e) { }
-})();`, start.Format(time.RFC3339), end.Format(time.RFC3339), experiredText, unsupportedText)
+})();`, start.Format(time.RFC3339), end.Format(time.RFC3339), escapedExpiredText)
+
+	// 假设 encodeJSUTF16BE 返回 []byte（UTF‑16BE 带 BOM）
+	utf16Bytes := encodeJSUTF16BE(js)
+
+	// 编成十六进制放进 HexLiteral
+	hexStr := hex.EncodeToString(utf16Bytes)
 
 	iref, err := ctx.IndRefForNewObject(types.Dict{
 		"S":  types.Name("JavaScript"),
-		"JS": types.StringLiteral(encodeJSUTF16BE(js)),
+		"JS": types.HexLiteral(hexStr),
 	})
 	if err != nil {
 		fmt.Printf("injectOpenActionJS: %v\n", err)
 	}
-
-	/* ctx.RootDict["Names"] = types.Dict{
-		"JavaScript": types.Dict{
-			"Names": types.Array{
-				types.StringLiteral("OpenActionJS"),
-				*iref,
-			},
-		},
-	} */
-
-	// Set OpenAction to the JavaScript action indirect reference.
 	ctx.RootDict["OpenAction"] = *iref
 }
+
+// ...existing code...

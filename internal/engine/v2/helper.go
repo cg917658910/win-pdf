@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,15 @@ func normalizeTime(t time.Time, isStart bool) time.Time {
 		return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 	}
 	return time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+}
+func escapeJSString(s string) string {
+	replacer := strings.NewReplacer(
+		`"`, `\"`,
+		`\`, `\\`,
+		"\n", `\n`,
+		"\r", ``,
+	)
+	return replacer.Replace(s)
 }
 
 func encodeJSUTF16BE(s string) []byte {

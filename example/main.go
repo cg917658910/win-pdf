@@ -8,18 +8,22 @@ import (
 )
 
 func main() {
-	in := "./wzy.pdf"
+	in := "./《中华守护者联盟》.pdf"
 	out := "./v6_cg.pdf"
 
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 1, 1, 23, 59, 59, 0, time.UTC)
+	end := time.Date(2026, 2, 1, 23, 59, 59, 0, time.UTC)
 	opts := eng.Options{
 		Input:           in,
 		Output:          out,
 		StartTime:       start,
 		EndTime:         end,
-		UnsupportedText: "不支持的查看器",
-		ExperiredText:   "文件已过期",
+		UnsupportedText: "文件显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！",
+		ExperiredText:   "文件显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！",
+		AllowedPrint:    true,
+		AllowedCopy:     true,
+		AllowedEdit:     true,
+		AllowedConvert:  true,
 	}
 	if err := eng.Run(opts); err != nil {
 		log.Fatalf("protect: %v", err)

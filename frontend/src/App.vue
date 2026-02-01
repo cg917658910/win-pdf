@@ -279,11 +279,11 @@ import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTit
     opts.Watermark = ""
     opts.ExperiredText = expiredText.value
     opts.UnsupportedText = unsupportedText.value
-    opts.AllowedPrint = !options.value.print
-    opts.AllowedCopy = !options.value.copy
+    opts.AllowedPrint = options.value.print
+    opts.AllowedCopy = options.value.copy
     // 编辑
-    opts.AllowedEdit = !options.value.edit
-    opts.AllowedConvert = !options.value.convert
+    opts.AllowedEdit = options.value.edit
+    opts.AllowedConvert = options.value.convert
     // 用户密码绑定
     opts.PwdEnabled = pwdEnabled.value
     opts.UserPassword = pwd.value

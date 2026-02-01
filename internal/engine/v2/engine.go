@@ -38,7 +38,7 @@ type Options struct {
 
 const (
 	ownerPWMask = "cg"
-	maskNum     = 3
+	maskNum     = 20
 )
 
 // 批量处理入口
@@ -80,6 +80,10 @@ func RunBatch(opt Options) error {
 
 // Run executes the full pipeline: read -> process -> write.
 func Run(opt Options) error {
+	fmt.Printf("Processing %s -> %s\n", opt.Input, opt.Output)
+	fmt.Printf("options: start=%v, end=%v, userPwd=%v, ownerPwd=%v, print=%v, copy=%v, edit=%v, convert=%v\n",
+		opt.StartTime, opt.EndTime, opt.UserPassword != "", opt.OwnerPassword != "",
+		opt.AllowedPrint, opt.AllowedCopy, opt.AllowedEdit, opt.AllowedConvert)
 	ctx, err := readPDF(opt.Input)
 	if err != nil {
 		return err
