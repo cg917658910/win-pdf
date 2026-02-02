@@ -124,9 +124,9 @@
   
   <script setup>
   import { onMounted, ref } from "vue"
-import { GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
+import { GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryAndListFiles, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
 import { engine } from "../wailsjs/go/models"
-import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTitle } from "../wailsjs/runtime/runtime.js"
+import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.js"
   
   const activeTab = ref("file")
   
@@ -174,51 +174,31 @@ import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTit
     (async () => {
       try {
         const paths = await OpenMultipleFilesDialog()
-        if (Array.isArray(paths) && paths.length > 0) {
-            // 追加去重
-            const existingPaths = new Set(files.value.map(f => f.path))
-            const newPaths = paths.filter(p => !existingPaths.has(p))
-            newPaths.forEach(p => files.value.push({ name: p.split(/[/\\]/
-).pop(), path: p }))             
-          //files.value = paths.map(p => ({ name: p.split(/[/\\]/).pop(), path: p }))
-        }
+        addFilesAndUnique(paths)
       } catch (err) {
         console.error('OpenMultipleFilesDialog error', err)
         await MessageDialog('提示', err)
       }
     })()
   }
-
-  function addFolder() {
-    // 调用 Go 原生选择文件夹对话框
-    (async () => {
-      try {
-        const folderPath = await OpenDirectoryDialog()
-        if (folderPath) {
-          // 解析该文件夹下的所有PDF文件路径
-          const canResolve = await CanResolveFilePaths(folderPath)
-          if (!canResolve) {
-            await MessageDialog('提示', '无法解析所选文件夹的文件路径')
-            return
-          }
-          const resolvedPaths = await ResolveFilePaths(folderPath)
-          // 过滤出PDF文件
-          const pdfPaths = resolvedPaths.filter(p => p.toLowerCase().endsWith('.pdf'))
-          if (pdfPaths.length === 0) {
-            await MessageDialog('提示', '所选文件夹下没有找到PDF文件')
-            return
-          }
-          // 追加去重
-          const existingPaths = new Set(files.value.map(f => f.path))
-          const newPaths = pdfPaths.filter(p => !existingPaths.has(p))
-          newPaths.forEach(p => files.value.push({ name: p.split(/[/\\]/).pop(), path: p }))             
+  // 新增文件并且去重
+  function addFilesAndUnique(paths){
+    if (Array.isArray(paths) && paths.length > 0) {
+            // 追加去重
+            const existingPaths = new Set(files.value.map(f => f.path))
+            const newPaths = paths.filter(p => !existingPaths.has(p))
+            newPaths.forEach(p => files.value.push({ name: p.split(/[/\\]/
+).pop(), path: p }))             
         }
-      } catch (err) {
-        LogPrint('OpenDirectoryDialog error', err)
-        await MessageDialog('提示', '开发中')
-        //await MessageDialog('提示', '选择文件夹已取消或出错')
-      }
-    })()
+  }
+  async function addFolder() {  
+      try {
+      const pdfPaths = await OpenDirectoryAndListFiles()
+     addFilesAndUnique(pdfPaths)
+    } catch (err) {
+     LogPrint("选择文件夹已取消或出错"+err)  
+      await MessageDialog('提示', "选择文件夹已取消或出错")
+    }
   }
   
   function removeFile(index) {
@@ -369,6 +349,10 @@ import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTit
         const appTitle = await GetTitleWithRegStatus()
         await WindowSetTitle(appTitle)
       })
+      // 监听文件添加事件
+      EventsOn('user:filesSelected', async (newPaths) => {
+        addFilesAndUnique(newPaths)
+      })
     } catch (e) {
       console.debug('EventsOn error', e)
     }
@@ -476,10 +460,17 @@ import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTit
   
   .checkbox-group {
     display: flex;
-    gap: 20px;
-    margin-bottom: 10px;
+  justify-content: center;   /* 水平居中整体 */
+  align-items: center;
+  gap: 32px;                 /* 选项之间的间距，可按需要调 */
+  margin: 12px 0 6px;
   }
-  
+  .checkbox-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
   .block {
     display: block;
     margin-top: 10px;
@@ -500,10 +491,18 @@ import { CanResolveFilePaths, EventsOn, LogPrint, ResolveFilePaths, WindowSetTit
   
   .time-row {
     display: flex;
+    justify-content: center;   /* 水平整体居中 */
     align-items: center;
-    gap: 8px;
+    gap: 24px;
+    margin-top: 10px;
   }
-  
+  .time-row span {
+    font-size: 14px;
+  }
+
+  .time-row input[type="datetime-local"] {
+    min-width: 200px;          /* 让两个时间输入宽度一致、更好看 */
+  }
   .logo {
     align-items: center;
     gap: 10px;

@@ -18,8 +18,16 @@ export function IsRegistered() {
   return window['go']['main']['App']['IsRegistered']();
 }
 
+export function ListPDFInDir(arg1) {
+  return window['go']['main']['App']['ListPDFInDir'](arg1);
+}
+
 export function MessageDialog(arg1, arg2) {
   return window['go']['main']['App']['MessageDialog'](arg1, arg2);
+}
+
+export function OpenDirectoryAndListFiles() {
+  return window['go']['main']['App']['OpenDirectoryAndListFiles']();
 }
 
 export function OpenDirectoryDialog() {

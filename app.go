@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -118,6 +119,43 @@ func (a *App) Register(code string) (string, error) {
 	return "注册成功", nil
 }
 
+//打开原生选择目录对话框并返回用户选择文件夹所有文件
+
+func (a *App) OpenDirectoryAndListFiles() ([]string, error) {
+	dirPath, err := rt.OpenDirectoryDialog(a.ctx, rt.OpenDialogOptions{Title: "选择文件夹"})
+	if err != nil {
+		rt.LogPrintf(a.ctx, "OpenDirectoryDialog error: %v", err)
+		return nil, err
+	}
+	// 列出目录下所有文件
+	return a.ListPDFInDir(dirPath)
+}
+
+// ListPDFInDir 返回指定目录下所有 PDF 文件的绝对路径（不递归子目录）
+func (a *App) ListPDFInDir(dir string) ([]string, error) {
+	if dir == "" {
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var paths []string
+	for _, ent := range entries {
+		if ent.IsDir() {
+			continue
+		}
+		name := ent.Name()
+		if strings.HasSuffix(strings.ToLower(name), ".pdf") {
+			// 使用 filepath.Join 生成平台无关的路径
+			paths = append(paths, filepath.Join(dir, name))
+		}
+	}
+	return paths, nil
+}
+
 // OpenDirectoryDialog 打开原生选择目录对话框并返回用户选择的目录路径
 func (a *App) OpenDirectoryDialog() (string, error) {
 	// 使用 Wails runtime 提供的 OpenDirectoryDialog
@@ -191,7 +229,17 @@ func NewAppMenu(app *App) *menu.Menu {
 
 	FileMenu := appMenu.AddSubmenu("文件")
 	FileMenu.AddText("选择文件", keys.CmdOrCtrl("o"), func(_ *menu.CallbackData) {
-		//app.OpenMultipleFilesDialog()
+		files, err := app.OpenMultipleFilesDialog()
+		if err != nil {
+			rt.LogPrintf(app.ctx, "OpenMultipleFilesDialog error: %v", err)
+			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
+				Title:   "错误",
+				Message: fmt.Sprintf("选择文件出错：%v", err),
+			})
+			return
+		}
+		// trigger event to frontend
+		rt.EventsEmit(app.ctx, "user:filesSelected", files)
 	})
 	FileMenu.AddSeparator()
 	FileMenu.AddText("退出", keys.CmdOrCtrl("q"), func(_ *menu.CallbackData) {

@@ -53,5 +53,3 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
 	}
 	ctx.RootDict["OpenAction"] = *iref
 }
-
-// ...existing code...
