@@ -93,19 +93,19 @@
       </div>
       <!-- 注册模态 -->
       <div v-if="showRegisterModal" class="modal-overlay">
-        <div class="modal">
-          <h3>在线注册</h3>
-          <div class="register-machine">
-            <div>机器码：</div>
-            <div class="machine-row">
-              <span class="machine-value">{{ machineCode }}</span>
-              <button class="copy-btn" @click="copyMachineCode">复制</button>
+        <div class="modal register-modal">
+          <h3 class="modal-title">在线注册</h3>
+          <div class="register-section">
+            <div class="register-label register-label-center">机器码：</div>
+            <div class="register-machine-row">
+              <span class="register-machine-value">{{ machineCode }}</span>
+              <button class="register-copy-btn" @click="copyMachineCode">复制</button>
             </div>
           </div>
-          <input v-model="activationCode" placeholder="输入注册码" />
-          <div class="modal-actions">
-            <button @click="onRegister" :disabled="registerLoading">注册</button>
-            <button @click="onCancel" :disabled="registerLoading">取消</button>
+          <input class="register-input" v-model="activationCode" placeholder="输入注册码" />
+          <div class="register-actions">
+            <button class="register-btn register-btn-primary" @click="onRegister" :disabled="registerLoading">注册</button>
+            <button class="register-btn" @click="onCancel" :disabled="registerLoading">取消</button>
           </div>
         </div>
       </div>
@@ -615,4 +615,90 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   }
   .pwd-card .btn.primary{ background:#f3f6f9 }
   .pwd-card .btn.success{ background:#4caf50; color:#fff; border-color:#4caf50 }
+
+  .modal-title {
+    margin: 0 0 18px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .register-modal {
+    padding: 26px 32px 22px;
+  }
+
+  .register-section {
+    margin-bottom: 16px;
+  }
+
+  .register-label {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .register-label-center {
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .register-machine-row {
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .register-machine-value {
+    flex: 1 1 auto;
+    font-family: monospace;
+    background:#f4f4f4;
+    padding:6px 10px;
+    border-radius:4px;
+    color:#333;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .register-input {
+    width: 100%;
+    padding: 10px 10px;
+    margin-top: 4px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #d0d0d0;
+    font-size: 14px;
+  }
+
+  .register-actions {
+    margin-top: 18px;
+    display:flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .register-copy-btn {
+    padding:6px 12px;
+    border:1px solid #d9d9d9;
+    background:#fff;
+    cursor:pointer;
+    border-radius:4px;
+    font-size: 13px;
+  }
+
+  .register-btn {
+    padding: 7px 18px;
+    border-radius: 4px;
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    cursor: pointer;
+    min-width: 86px;
+    font-size: 14px;
+  }
+
+  .register-btn-primary {
+    background: #1677ff;
+    border-color: #1677ff;
+    color: #fff;
+  }
   </style>
