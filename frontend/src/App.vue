@@ -388,6 +388,9 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   
   .main {
     display: flex;
+    /* 让左右区域在窗口高度内布局，避免被文件列表撑高 */
+    height: calc(100vh - 80px);
+    box-sizing: border-box;
   }
   
   .left-panel {
@@ -396,35 +399,50 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     padding: 10px;
     background: #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    /* 让内部使用列布局，文件列表占据剩余高度可滚动 */
+    display: flex;
+    flex-direction: column;
   }
   
   .action-buttons {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
-  }
-  
-  .action-buttons button{
-    padding:6px 10px;
-    border-radius:4px;
-    border:1px solid #cfcfcf;
-    background:#f3f6f9;
-    cursor:pointer;
+    flex-shrink: 0;
   }
   
   .file-list {
     border: 1px solid #eee;
-    overflow: auto;
+    overflow-y: auto; /* 纵向滚动 */
     padding: 5px;
-    background:#fafafa;
+    padding-bottom: 60px; /* 为底部预留更多空间，避免最后一条被 footer 遮挡 */
+    padding-right: 8px; /* 预留滚动条空间，避免文本被挡住 */
+    background: #fafafa;
+    /* 占据除按钮外的剩余高度 */
+    flex: 1 1 auto;
   }
   
   .file-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 72px; /* 名称、路径、删除按钮固定宽度 */
+    align-items: center;
+    column-gap: 8px;
     font-size: 14px;
-    padding:6px 8px;
-    border-radius:4px;
+    padding: 6px 8px;
+    border-radius: 4px;
+  }
+  
+  .file-item .name,
+  .file-item .path {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis; /* 太长用省略号，避免挤压删除按钮 */
+  }
+  
+  .file-item button {
+    justify-self: end;
+    width: 64px;           /* 删除按钮固定宽度，保证完全显示 */
+    padding: 6px 0;
   }
   
   .file-item + .file-item{margin-top:6px}
@@ -444,6 +462,8 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   .right-panel {
     width: 55%;
     padding-left: 15px;
+    /* 与左侧同高，内部自然滚动页面 */
+    box-sizing: border-box;
   }
   
   .card {
