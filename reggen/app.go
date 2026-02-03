@@ -23,7 +23,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.initConfig()
+	//a.initConfig()
 }
 func (a *App) initConfig() {
 	priPath := "./config/server_private.pem"

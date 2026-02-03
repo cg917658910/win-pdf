@@ -30,7 +30,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.initConfig()
+	//a.initConfig()
 }
 func (a *App) initConfig() {
 	pubPath := "./confg/server_public.pem"
@@ -104,7 +104,7 @@ func (a *App) IsRegistered() bool {
 
 // GetMachineCode 返回当前机器码
 func (a *App) GetMachineCode() (string, error) {
-	return license.GetMachineCode()
+	return license.GetMachineCodeFormatted()
 }
 
 // Register 尝试使用注册码注册应用

@@ -139,8 +139,8 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     edit: false,
     convert: false,
     print: false,
-    unsupportedTip: true,
-    expiredTip: true,
+    unsupportedTip: false,
+    expiredTip: false,
   })
   
   const unsupportedText = ref(
@@ -257,8 +257,12 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     opts.StartTime = startTime.value ? new Date(startTime.value).toISOString() : null
     opts.EndTime = endTime.value ? new Date(endTime.value).toISOString() : null
     opts.Watermark = ""
-    opts.ExperiredText = expiredText.value
-    opts.UnsupportedText = unsupportedText.value
+    if(options.value.expiredTip){
+      opts.ExperiredText = expiredText.value
+    }
+    if(options.value.unsupportedTip){
+      opts.UnsupportedText = unsupportedText.value
+    }
     opts.AllowedPrint = options.value.print
     opts.AllowedCopy = options.value.copy
     // 编辑
@@ -295,7 +299,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       machineCode.value = await GetMachineCode()
     } catch (err) {
       console.error('Register error', err)
-      await MessageDialog('错误', '注册失败：' + (err && err.message ? err.message : err))
+      await MessageDialog('错误',  (err && err.message ? err.message : err))
     } finally {
       registerLoading.value = false
     }
@@ -346,6 +350,11 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       })
       // 监听用户注册成功事件，获取最新标题并更新标题
       EventsOn('user:registered', async () => {
+        const appTitle = await GetTitleWithRegStatus()
+        await WindowSetTitle(appTitle)
+      })
+      // 监听用户注销事件，获取最新标题并更新标题
+      EventsOn('user:unregistered', async () => {
         const appTitle = await GetTitleWithRegStatus()
         await WindowSetTitle(appTitle)
       })

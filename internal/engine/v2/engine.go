@@ -84,6 +84,7 @@ func Run(opt Options) error {
 	fmt.Printf("options: start=%v, end=%v, userPwd=%v, ownerPwd=%v, print=%v, copy=%v, edit=%v, convert=%v\n",
 		opt.StartTime, opt.EndTime, opt.UserPassword != "", opt.OwnerPassword != "",
 		opt.AllowedPrint, opt.AllowedCopy, opt.AllowedEdit, opt.AllowedConvert)
+	fmt.Printf("expiredText=%q, unsupportedText=%q\n", opt.ExperiredText, opt.UnsupportedText)
 	ctx, err := readPDF(opt.Input)
 	if err != nil {
 		return err

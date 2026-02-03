@@ -2,7 +2,6 @@ package license
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -54,7 +53,6 @@ func loadActivation() (*ActivationInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Loading activation info from %s\n", p)
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package license
 
 import (
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -23,6 +24,8 @@ type ActivationInfo struct {
 	ActivatedAt time.Time  `json:"activated_at"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 }
+
+var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // GetMachineCode 生成基于主机信息的机器码（不可逆的哈希）
 func GetMachineCode() (string, error) {
@@ -57,15 +60,35 @@ func GetMachineCode() (string, error) {
 
 	h := sha256.Sum256([]byte(b.String()))
 	// 返回前 16 字节（32 个十六进制字符）以缩短机器码长度，同时保持较高的唯一性
-	return strings.ToUpper(hex.EncodeToString(h[:16])), nil
+	return strings.ToUpper(hex.EncodeToString(h[:12])), nil
+}
+func GetMachineCodeFormatted() (string, error) {
+	code, err := GetMachineCode()
+	if err != nil {
+		return "", err
+	}
+	return FormatMachineCode(code), nil
+}
+
+// FormatMachineCode 把 16 字符机器码格式化为 4-4（如 ABCD-EF01-...）
+func FormatMachineCode(code string) string {
+	var parts []string
+	for i := 0; i < len(code); i += 4 {
+		end := i + 4
+		if end > len(code) {
+			end = len(code)
+		}
+		parts = append(parts, code[i:end])
+	}
+	return strings.Join(parts, "-")
 }
 
 // ValidateRegCode 验证注册码是否合法并返回解析后的激活信息
-func ValidateRegCode(machineCode, regCode string) (*ActivationInfo, error) {
+func ValidateRegCodeWthRES(machineCode, regCode string) (*ActivationInfo, error) {
+	machineCode = strings.ReplaceAll(strings.TrimSpace(machineCode), "-", "")
 	if machineCode == "" || regCode == "" {
 		return nil, errors.New("参数为空")
 	}
-
 	raw, err := base64.StdEncoding.DecodeString(regCode)
 	if err != nil {
 		return nil, fmt.Errorf("注册码解码失败: %w", err)
@@ -75,7 +98,6 @@ func ValidateRegCode(machineCode, regCode string) (*ActivationInfo, error) {
 	if len(parts) != 3 {
 		return nil, errors.New("注册码格式错误")
 	}
-
 	mc := parts[0]
 	if mc != machineCode {
 		return nil, errors.New("注册码与当前机器码不匹配")
@@ -113,6 +135,52 @@ func ValidateRegCode(machineCode, regCode string) (*ActivationInfo, error) {
 	}
 	return ai, nil
 }
+func ValidateRegCodeWithB32(machineCode, regCode string) (*ActivationInfo, error) {
+	if machineCode == "" || regCode == "" {
+		return nil, errors.New("参数为空")
+	}
+	// 统一去掉短横线并大写
+	machinePlain := strings.ToUpper(strings.ReplaceAll(machineCode, "-", ""))
+	regPlain := strings.ToUpper(strings.ReplaceAll(regCode, "-", ""))
+
+	// 这里你可能有固定过期时间策略，比如不过期：expiry = 0
+	// 或由前端/后台传一个具体的时间，这里我先按不过期举例：
+	var expiryUnix int64 = 0
+
+	// 重新计算期望注册码（20 长度短码）
+	payload := fmt.Sprintf("%s|%d", machinePlain, expiryUnix)
+	h := sha256.Sum256([]byte(payload))
+	code := b32.EncodeToString(h[:])
+	if len(code) > 20 {
+		code = code[:20]
+	}
+
+	// 比较（注意：regPlain 是无 '-' 的，code 现在也是无 '-' 的 20 位）
+	if regPlain != code {
+		return nil, errors.New("注册码无效")
+	}
+
+	var expiresAt *time.Time
+	if expiryUnix > 0 {
+		t := time.Unix(expiryUnix, 0)
+		expiresAt = &t
+		if time.Now().After(t) {
+			return nil, errors.New("注册码已过期")
+		}
+	}
+
+	ai := &ActivationInfo{
+		MachineCode: machinePlain,
+		RegCode:     regCode, // 保留原始格式（带不带-都行）
+		ActivatedAt: time.Now(),
+		ExpiresAt:   expiresAt,
+	}
+	return ai, nil
+}
+
+func ValidateRegCode(machineCode, regCode string) (*ActivationInfo, error) {
+	return ValidateRegCodeWithB32(machineCode, regCode)
+}
 
 // ActivateWithRegCode 使用注册码激活并将激活信息持久化到用户配置目录
 func ActivateWithRegCode(regCode string) error {
@@ -148,6 +216,7 @@ func IsActivated() (bool, *ActivationInfo, error) {
 	}
 
 	if ai.MachineCode != mc {
+		fmt.Printf("Machine code mismatch: expected %s, got %s\n", mc, ai.MachineCode)
 		return false, nil, nil
 	}
 
