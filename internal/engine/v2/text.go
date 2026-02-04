@@ -11,15 +11,15 @@ import (
 )
 
 // BuildTextXObject 创建一个用于绘制文本的 Form XObject。
-// 它会保证 page 的 Resources 包含一个名为 F1 的 Type0 字体（如果不存在则创建 STSong-Light）。
+// 中文及所有非 ASCII 字符使用 CJK Type0 字体 F1 以 UTF-16BE 输出；
+// 纯 ASCII 文本使用 F2 + WinAnsi，一次性输出对应段，兼顾中英文混排与字距效果。
 func buildTextXObject(
 	ctx *model.Context,
 	page types.Dict,
 	text string,
 ) (*types.IndirectRef, error) {
-
 	// Compute media box to position text at top-left
-	var xmin, _, _, ymax float64 = 0, 0, 595, 842 // default A4-like
+	var xmin, _, _, ymax float64 = 0, 0, 595, 842
 	mb, ok := page["MediaBox"].(types.Array)
 	if ok && len(mb) >= 4 {
 		if v, ok := mb[0].(types.Float); ok {
@@ -37,28 +37,57 @@ func buildTextXObject(
 	// Font size smaller
 	fontSize := 10.0
 
-	// Encode text to UTF-16BE with BOM
-	utf16codes := utf16.Encode([]rune(text))
-	buf := make([]byte, 0, 2*(len(utf16codes)+1))
-	// BOM FE FF
-	buf = append(buf, 0xFE, 0xFF)
-	for _, cp := range utf16codes {
-		buf = append(buf, byte(cp>>8), byte(cp&0xFF))
+	var sb strings.Builder
+	sb.WriteString("q\n")
+	sb.WriteString("0.5 0.5 0.5 rg\n")
+	sb.WriteString("BT\n")
+	sb.WriteString(fmt.Sprintf("1 0 0 1 %s %s Tm\n", fmtFloat(x), fmtFloat(y)))
+
+	// === 核心逻辑：ASCII 段 -> F2/WinAnsi；非 ASCII 段 -> F1/UTF-16BE(不带 BOM) ===
+	runes := []rune(text)
+	var asciiBuf []byte
+	var cjkBuf []byte
+
+	flushAscii := func() {
+		if len(asciiBuf) == 0 {
+			return
+		}
+		hexStr := strings.ToUpper(hex.EncodeToString(asciiBuf))
+		sb.WriteString(fmt.Sprintf("/F2 %d Tf\n<%s> Tj\n", int(fontSize), hexStr))
+		asciiBuf = asciiBuf[:0]
 	}
-	hexstr := strings.ToUpper(hex.EncodeToString(buf))
-	content := fmt.Sprintf(`
-q
-0.5 0.5 0.5 rg
-BT
-/F1 %d Tf
-%f %f Td
-<%s> Tj
-ET
-Q
-`, int(fontSize), x, y, hexstr)
-	sd, err := ctx.NewStreamDictForBuf(
-		[]byte(content),
-	)
+	flushCJK := func() {
+		if len(cjkBuf) == 0 {
+			return
+		}
+		hexStr := strings.ToUpper(hex.EncodeToString(cjkBuf))
+		sb.WriteString(fmt.Sprintf("/F1 %d Tf\n<%s> Tj\n", int(fontSize), hexStr))
+		cjkBuf = cjkBuf[:0]
+	}
+
+	for _, r := range runes {
+		// 可打印 ASCII：交给 F2/WinAnsi
+		if r >= 0x20 && r <= 0x7E {
+			flushCJK()
+			asciiBuf = append(asciiBuf, byte(r))
+			continue
+		}
+
+		// 非 ASCII：使用 F1/UTF-16BE（UniGB-UCS2-H 不要 BOM）
+		flushAscii()
+		for _, cp := range utf16.Encode([]rune{r}) {
+			cjkBuf = append(cjkBuf, byte(cp>>8), byte(cp&0xFF))
+		}
+	}
+
+	// 处理末尾残留
+	flushAscii()
+	flushCJK()
+
+	sb.WriteString("ET\nQ\n")
+	content := sb.String()
+
+	sd, err := ctx.NewStreamDictForBuf([]byte(content))
 	if err != nil {
 		return nil, err
 	}
@@ -69,26 +98,11 @@ Q
 	sd.Dict["Subtype"] = types.Name("Form")
 	sd.Dict["BBox"] = mb
 
-	// 如果提供了页面 Resources，则把它设置到 XObject 里，保证文本字体等资源可以被解析
-	var res types.Dict
-	if r, ok := page["Resources"].(types.Dict); ok {
-		res = r
-	} else {
-		res = types.Dict{}
-		page["Resources"] = res
-	}
+	// 构建资源字典：F1 = CJK Type0；F2 = Helvetica/WinAnsi
+	res := types.Dict{}
+	fonts := types.Dict{}
 
-	// Ensure Font dictionary
-	var fonts types.Dict
-	if f, ok := res["Font"].(types.Dict); ok {
-		fonts = f
-	} else {
-		fonts = types.Dict{}
-		res["Font"] = fonts
-	}
-
-	// Create a CJK Type0 font referencing STSong-Light with UniGB-UCS2-H encoding
-	// Many PDF viewers will map this to a local CJK font to render Chinese.
+	// F1: CJK Type0
 	cidDict := types.Dict{
 		"Type":     types.Name("Font"),
 		"Subtype":  types.Name("CIDFontType2"),
@@ -131,8 +145,21 @@ Q
 	if err != nil {
 		return nil, err
 	}
-
 	fonts["F1"] = *type0Ref
+
+	// F2: Latin Type1 Helvetica + WinAnsiEncoding
+	latinFont := types.Dict{
+		"Type":     types.Name("Font"),
+		"Subtype":  types.Name("Type1"),
+		"BaseFont": types.Name("Helvetica"),
+		"Encoding": types.Name("WinAnsiEncoding"),
+	}
+	latinRef, err := ctx.IndRefForNewObject(latinFont)
+	if err != nil {
+		return nil, err
+	}
+	fonts["F2"] = *latinRef
+
 	res["Font"] = fonts
 	sd.Dict["Resources"] = res
 

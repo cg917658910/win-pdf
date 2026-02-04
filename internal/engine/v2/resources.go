@@ -21,9 +21,18 @@ func injectOCGResources(
 	// 确保 Resources 存在且为 types.Dict，容错处理
 	var res types.Dict
 	if r, ok := pageDict["Resources"]; ok && r != nil {
-		if rd, ok := r.(types.Dict); ok {
-			res = rd
-		} else {
+		switch v := r.(type) {
+		case types.Dict:
+			res = v
+		case types.IndirectRef:
+			rd, err := ctx.DereferenceDict(v)
+			if err == nil && rd != nil {
+				res = rd
+			} else {
+				res = types.Dict{}
+				pageDict["Resources"] = res
+			}
+		default:
 			// 非预期类型，创建新的 Resources
 			res = types.Dict{}
 			pageDict["Resources"] = res
