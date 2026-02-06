@@ -74,9 +74,6 @@ func rewritePageWithMasksAndFallback(
 	pageDict types.Dict,
 	pageNr int,
 	masks []*types.IndirectRef,
-	text *types.IndirectRef,
-	maskOCGs []*types.IndirectRef,
-	textOCG *types.IndirectRef,
 ) error {
 
 	var buf bytes.Buffer
@@ -94,6 +91,14 @@ func rewritePageWithMasksAndFallback(
 			idx,
 		))
 	}
+	buf.WriteString(fmt.Sprintf(
+		"/OC /expired_%02d BDC\n/expired_%02d Do\nEMC\n", pageNr, pageNr,
+	))
+	// expired_mask
+	buf.WriteString(fmt.Sprintf(
+		"/OC /expired_mask_%02d BDC\n/expired_mask_%02d Do\nEMC\n", pageNr, pageNr,
+	))
+	// fallback text
 	buf.WriteString(fmt.Sprintf(
 		"/OC /text_%02d BDC\n/text_%02d Do\nEMC\n", pageNr, pageNr,
 	))

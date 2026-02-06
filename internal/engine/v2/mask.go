@@ -70,7 +70,7 @@ func buildMaskOCGsAndXObjectsForPage(ctx *model.Context, page types.Dict, pageNr
 	}
 	objs, err := buildMaskXObjects(ctx, mediaBox, count)
 	if err != nil {
-		return nil, nil, fmt.Errorf("build mask xobjects: %w", objs)
+		return nil, nil, fmt.Errorf("build mask xobjects: %w", err)
 	}
 	return ocgs, objs, nil
 }

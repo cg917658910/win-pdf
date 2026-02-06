@@ -38,7 +38,7 @@ type Options struct {
 
 const (
 	ownerPWMask = "cg"
-	maskNum     = 20
+	maskNum     = 10
 )
 
 // 批量处理入口
@@ -80,11 +80,6 @@ func RunBatch(opt Options) error {
 
 // Run executes the full pipeline: read -> process -> write.
 func Run(opt Options) error {
-	fmt.Printf("Processing %s -> %s\n", opt.Input, opt.Output)
-	fmt.Printf("options: start=%v, end=%v, userPwd=%v, ownerPwd=%v, print=%v, copy=%v, edit=%v, convert=%v\n",
-		opt.StartTime, opt.EndTime, opt.UserPassword != "", opt.OwnerPassword != "",
-		opt.AllowedPrint, opt.AllowedCopy, opt.AllowedEdit, opt.AllowedConvert)
-	fmt.Printf("expiredText=%q, unsupportedText=%q\n", opt.ExperiredText, opt.UnsupportedText)
 	ctx, err := readPDF(opt.Input)
 	if err != nil {
 		return err
@@ -135,13 +130,11 @@ func processPDF(ctx *model.Context, opt Options) error {
 
 // 处理加密
 func processEncryption(ctx *model.Context, opt Options) {
-	if opt.UserPassword != "" {
-		ctx.Cmd = model.ENCRYPT
-		ctx.UserPW = strings.TrimSpace(opt.UserPassword)
-		ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
-		ctx.EncryptUsingAES = true
-		ctx.EncryptKeyLength = 256
-	}
+	ctx.Cmd = model.ENCRYPT
+	ctx.UserPW = strings.TrimSpace(opt.UserPassword)
+	ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
+	ctx.EncryptUsingAES = true
+	ctx.EncryptKeyLength = 256
 }
 
 // 处理权限
@@ -185,6 +178,18 @@ func processPageStructured(ctx *model.Context, pageNum int, opt Options, maskNum
 		return fmt.Errorf("build mask ocgs and xobjects for page: %w", err)
 	}
 	insertOCPropertiesOCGs(ctx, maskOCGs)
+	// expired OCG and XObject
+	expiredOCG, expiredXObj, err := buildExpiredOCGAndXObject(ctx, pageDict, pageNum, opt.ExperiredText)
+	if err != nil {
+		return fmt.Errorf("build expired ocg and xobject: %w", err)
+	}
+	insertOCPropertiesOCGs(ctx, []*types.IndirectRef{expiredOCG})
+	// expired_mask OCG and XObject
+	expiredMaskOCG, expiredMaskXObj, err := buildExpiredMaskOCGAndXObject(ctx, pageDict, pageNum)
+	if err != nil {
+		return fmt.Errorf("build expired mask ocg and xobject: %w", err)
+	}
+	insertOCPropertiesOCGs(ctx, []*types.IndirectRef{expiredMaskOCG})
 	// 4. 处理 fallback：创建 fallback OCG，创建 fallback XObject
 	fallbackOCG, fallbackXObj, err := buildFallbackOCGAndXObject(ctx, pageDict, pageNum, opt.UnsupportedText)
 	if err != nil {
@@ -193,9 +198,12 @@ func processPageStructured(ctx *model.Context, pageNum int, opt Options, maskNum
 	insertOCPropertiesOCGs(ctx, []*types.IndirectRef{fallbackOCG})
 	// 5. 绑定 mask OCGResources, 绑定 fallback OCGResources
 	injectOCGResources(ctx, pageDict, pageNum, normalXObj, maskXObjs, fallbackXObj, maskOCGs, fallbackOCG)
-
+	// expired_mask OCGResources
+	injectExpiredMaskOCGResources(ctx, pageDict, pageNum, expiredMaskXObj, expiredMaskOCG)
+	// expired OCGResources
+	injectExpiredOCGResources(ctx, pageDict, pageNum, expiredXObj, expiredOCG)
 	// 6. Rewrite 页面：插入引用 mask & fallback
-	if err := rewritePageWithMasksAndFallback(ctx, pageDict, pageNum, maskXObjs, fallbackXObj, maskOCGs, fallbackXObj); err != nil {
+	if err := rewritePageWithMasksAndFallback(ctx, pageDict, pageNum, maskXObjs); err != nil {
 		return fmt.Errorf("rewrite page with masks: %w", err)
 	}
 	return nil

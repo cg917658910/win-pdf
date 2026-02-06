@@ -15,28 +15,74 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
 	js := fmt.Sprintf(`(function(){
   try{
     if(this.__ocg_js_executed) return; this.__ocg_js_executed = true;
+    var alertMsg = function(msg){
+        if (typeof app !== "undefined" && app && typeof app.alert === "function") {
+            app.alert({ cMsg: msg });
+        }
+  	};
+    // debugger;
+    alertMsg("有效期PDF");
     var start = new Date("%s");
     var end = new Date("%s");
     var now = new Date();
     var inRange = (now >= start && now <= end);
-    try {
-      if(!inRange){
-        app.alert({
-            cMsg: "%s",
-          });	
-        this.closeDoc(true);
-        return;  
-      }
-     if (typeof this.getOCGs === "function") {
-        var ocgs = this.getOCGs();
-        for (var i = 0; i < ocgs.length; i++) {
-          var o = ocgs[i];
-          o.state = false;
+	
+    var myOCGs = function(){
+        if (typeof getOCGs === "function") {
+            return getOCGs();
         }
+        if (typeof this.getOCGs === "function") {
+            return this.getOCGs();
+        }
+        return null;
+    };
+    // 关闭所有 OCG
+    var closeAllOCGs = function(){
+        var ocgs = myOCGs();
+        if (ocgs && ocgs.length) {
+            for (var i = 0; i < ocgs.length; i++) {
+              if (ocgs[i]) {
+                ocgs[i].state = false;
+              }
+            }
+        }
+    };
+    // 关闭text_*OCG
+    var closeTextOCGs = function(){
+        var ocgs = myOCGs();
+        if (ocgs && ocgs.length) {
+            for (var i = 0; i < ocgs.length; i++) {
+              if (ocgs[i] && ocgs[i].name && ocgs[i].name.indexOf("text_") === 0) {
+                ocgs[i].state = false;
+              }
+              //关闭 expired_mask_* OCG
+              if (ocgs[i] && ocgs[i].name && ocgs[i].name.indexOf("expired_mask_") === 0) {
+                ocgs[i].state = false;
+              }
+            }
+        }
+    };
+      if(!inRange){
+        // 过期关闭text提示
+        closeTextOCGs();
+        if("%s" !== ""){
+          alertMsg("%s");
+        }
+		if (this && typeof this.closeDoc === "function") {
+        	this.closeDoc(true);
+			 return;  
+      	}
+		if (typeof closeDoc === "function"){
+			closeDoc(true);
+			return;
+		}
+        return;
       }
-    } catch (e) { app.alert(e); }
-    } catch (e) { }
-})();`, start.Format(time.RFC3339), end.Format(time.RFC3339), escapedExpiredText)
+      // zh: 在有效期内，关闭所有 OCG
+      closeAllOCGs();
+      return;
+    } catch (e) {}
+})();`, start.Format(time.RFC3339), end.Format(time.RFC3339), escapedExpiredText, escapedExpiredText)
 
 	// 假设 encodeJSUTF16BE 返回 []byte（UTF‑16BE 带 BOM）
 	utf16Bytes := encodeJSUTF16BE(js)

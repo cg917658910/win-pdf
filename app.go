@@ -69,8 +69,8 @@ func (a *App) SetExpiry(opts engine.Options) string {
 	if opts.EndTime.Sub(opts.StartTime) < 1*time.Minute {
 		return fmt.Sprintf("错误：有效期区间最短为1分钟")
 	}
-	if opts.EndTime.Sub(opts.StartTime) > 10*365*24*time.Hour {
-		return fmt.Sprintf("错误：有效期区间最长为10年")
+	if opts.EndTime.Sub(opts.StartTime) > 100*365*24*time.Hour {
+		return fmt.Sprintf("错误：有效期区间最长为100年")
 	}
 	// 至少6位
 	if strings.TrimSpace(opts.UserPassword) != "" && len(opts.UserPassword) < 6 {

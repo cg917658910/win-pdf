@@ -48,7 +48,7 @@
           <div class="card">
             <label class="block">
               <input type="checkbox" v-model="options.unsupportedTip">
-              文件过期或在非指定的PDF阅读器中打开时的提示
+              在非指定的PDF阅读器中打开时的提示
             </label>
   
             <textarea v-model="unsupportedText" rows="2"></textarea>
@@ -89,7 +89,6 @@
         <div>
             ©远信软件技术服务有限公司&nbsp;&nbsp;2026.02&nbsp;&nbsp;未经许可，禁止售卖、传播，违者必究！
         </div>
-        <div class="machine-code">激活码：{{ machineCode }}</div>
       </div>
       <!-- 注册模态 -->
       <div v-if="showRegisterModal" class="modal-overlay">

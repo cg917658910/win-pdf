@@ -212,3 +212,29 @@ func buildFallbackOCGAndXObject(ctx *model.Context, pageDict types.Dict, pageNr 
 	}
 	return ocg, xobj, nil
 }
+func buildExpiredOCGAndXObject(ctx *model.Context, pageDict types.Dict, pageNr int, text string) (*types.IndirectRef, *types.IndirectRef, error) {
+	fallbackName := fmt.Sprintf("expired_%02d", pageNr)
+	ocg, err := createOCG(ctx, fallbackName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create expired ocg: %w", err)
+	}
+	xobj, err := buildTextXObject(ctx, pageDict, text)
+	if err != nil {
+		return nil, nil, fmt.Errorf("build expired text xobject: %w", err)
+	}
+	return ocg, xobj, nil
+}
+
+func buildExpiredMaskOCGAndXObject(ctx *model.Context, pageDict types.Dict, pageNr int) (*types.IndirectRef, *types.IndirectRef, error) {
+	name := fmt.Sprintf("expired_mask_%02d", pageNr)
+	ocg, err := createOCG(ctx, name)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create expired mask ocg: %w", err)
+	}
+	mediaBox := getPageMediaBox(pageDict)
+	xobj, err := buildMaskXObject(ctx, mediaBox)
+	if err != nil {
+		return nil, nil, fmt.Errorf("build expired mask xobject: %w", err)
+	}
+	return ocg, xobj, nil
+}

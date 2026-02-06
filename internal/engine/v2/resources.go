@@ -18,6 +18,34 @@ func injectOCGResources(
 	maskOCGs []*types.IndirectRef,
 	textOCG *types.IndirectRef,
 ) {
+	res := getResourceDict(ctx, pageDict)
+	xobj := res["XObject"].(types.Dict)
+	// 注册 NormalContent（如果有）
+	if normalXObj != nil {
+		xobj["NormalContent"] = *normalXObj
+	}
+	for i, m := range masks {
+		xobj[fmt.Sprintf("mask_%02d_%02d", pageNr, i)] = *m
+	}
+
+	xobj[fmt.Sprintf("text_%02d", pageNr)] = *text
+
+	// Properties
+	props, ok := res["Properties"].(types.Dict)
+	if !ok {
+		props = types.Dict{}
+		res["Properties"] = props
+	}
+	for i, ocg := range maskOCGs {
+		props[fmt.Sprintf("mask_%02d_%02d", pageNr, i)] = *ocg
+	}
+	if textOCG != nil {
+		props[fmt.Sprintf("text_%02d", pageNr)] = *textOCG
+	}
+	return
+}
+
+func getResourceDict(ctx *model.Context, pageDict types.Dict) types.Dict {
 	// 确保 Resources 存在且为 types.Dict，容错处理
 	var res types.Dict
 	if r, ok := pageDict["Resources"]; ok && r != nil {
@@ -47,28 +75,40 @@ func injectOCGResources(
 		xobj = types.Dict{}
 		res["XObject"] = xobj
 	}
+	return res
+}
 
-	// 注册 NormalContent（如果有）
-	if normalXObj != nil {
-		xobj["NormalContent"] = *normalXObj
+func injectExpiredOCGResources(
+	ctx *model.Context,
+	pageDict types.Dict,
+	pageNr int,
+	expiredText *types.IndirectRef,
+	expiredOCG *types.IndirectRef,
+) {
+	res := getResourceDict(ctx, pageDict)
+	xobj := res["XObject"].(types.Dict)
+	xobj[fmt.Sprintf("expired_%02d", pageNr)] = *expiredText
+	// Properties
+
+	props, ok := res["Properties"].(types.Dict)
+	if !ok {
+		props = types.Dict{}
+		res["Properties"] = props
 	}
-	for i, m := range masks {
-		xobj[fmt.Sprintf("mask_%02d_%02d", pageNr, i)] = *m
-	}
+	props[fmt.Sprintf("expired_%02d", pageNr)] = *expiredOCG
+	return
+}
 
-	xobj[fmt.Sprintf("text_%02d", pageNr)] = *text
-
+func injectExpiredMaskOCGResources(ctx *model.Context, pageDict types.Dict, pageNr int, expiredMaskXObj *types.IndirectRef, expiredMaskOCG *types.IndirectRef) {
+	res := getResourceDict(ctx, pageDict)
+	xobj := res["XObject"].(types.Dict)
+	xobj[fmt.Sprintf("expired_mask_%02d", pageNr)] = *expiredMaskXObj
 	// Properties
 	props, ok := res["Properties"].(types.Dict)
 	if !ok {
 		props = types.Dict{}
 		res["Properties"] = props
 	}
-	for i, ocg := range maskOCGs {
-		props[fmt.Sprintf("mask_%02d_%02d", pageNr, i)] = *ocg
-	}
-	if textOCG != nil {
-		props[fmt.Sprintf("text_%02d", pageNr)] = *textOCG
-	}
+	props[fmt.Sprintf("expired_mask_%02d", pageNr)] = *expiredMaskOCG
 	return
 }
