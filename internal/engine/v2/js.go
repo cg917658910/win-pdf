@@ -21,7 +21,7 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
         }
   	};
     // debugger;
-    alertMsg("有效期PDF");
+    // alertMsg("有效期PDF");
     var start = new Date("%s");
     var end = new Date("%s");
     var now = new Date();

@@ -30,7 +30,15 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	//a.initConfig()
+	a.showTrialMessage()
+}
+
+// 弹窗提示试用中
+func (a *App) showTrialMessage() {
+	rt.MessageDialog(a.ctx, rt.MessageDialogOptions{
+		Title:   "易诚无忧提示",
+		Message: "当前处于试用阶段！",
+	})
 }
 func (a *App) initConfig() {
 	pubPath := "./confg/server_public.pem"
@@ -86,10 +94,10 @@ func (a *App) SetExpiry(opts engine.Options) string {
 	}
 	err = engine.RunBatch(opts)
 	if err != nil {
-		return fmt.Sprintf("错误：处理文件时出错：%v", err)
+		return fmt.Sprintf("%v", err)
 	}
 
-	return fmt.Sprintf("设置成功")
+	return fmt.Sprintf("所有文档设置成功")
 }
 
 // IsRegistered 返回当前是否已注册（调用 internal/auth）
@@ -210,7 +218,7 @@ func (a *App) MessageDialog(title, message string) (string, error) {
 	return res, nil
 }
 func (a *App) GetTitleWithRegStatus() string {
-	title := "易诚无忧PDF文档有效期设置工具"
+	title := "PDF文档有效期设置工具"
 	isActivated, _, err1 := license.IsActivated()
 	if err1 != nil {
 		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err1)
@@ -235,6 +243,20 @@ func NewAppMenu(app *App) *menu.Menu {
 			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 				Title:   "错误",
 				Message: fmt.Sprintf("选择文件出错：%v", err),
+			})
+			return
+		}
+		// trigger event to frontend
+		rt.EventsEmit(app.ctx, "user:filesSelected", files)
+	})
+	// 选择文件夹
+	FileMenu.AddText("选择文件夹", keys.CmdOrCtrl("shift+o"), func(_ *menu.CallbackData) {
+		files, err := app.OpenDirectoryAndListFiles()
+		if err != nil {
+			rt.LogPrintf(app.ctx, "OpenDirectoryAndListFiles error: %v", err)
+			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
+				Title:   "错误",
+				Message: fmt.Sprintf("选择文件夹出错：%v", err),
 			})
 			return
 		}
@@ -268,7 +290,7 @@ func NewAppMenu(app *App) *menu.Menu {
 	registerMenu.AddText("在线购买", nil, func(_ *menu.CallbackData) {
 		// do something
 		// 打开购买页面
-		rt.BrowserOpenURL(app.ctx, "https://baidu.com")
+		rt.BrowserOpenURL(app.ctx, "https://shop412449026.taobao.com/?spm=pc_detail.30350276.shop_block.dentershop.49fb7dd6BxbslH")
 	})
 	registerMenu.AddText("郑重声明", nil, func(_ *menu.CallbackData) {
 		// do something
@@ -283,10 +305,10 @@ func NewAppMenu(app *App) *menu.Menu {
 		//显示邮箱地址
 		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 			Title:   "联系我们",
-			Message: "如有任何问题或建议，请联系邮箱：",
+			Message: "如有任何问题或建议，请联系邮箱：dream9188@163.com",
 		})
 	})
-	registerMenu.AddText("注销", nil, func(_ *menu.CallbackData) {
+	/* registerMenu.AddText("注销", nil, func(_ *menu.CallbackData) {
 		license.Deactivate()
 		// 提示注销成功
 		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
@@ -295,7 +317,7 @@ func NewAppMenu(app *App) *menu.Menu {
 		})
 		//发送事件，通知前端更新注册状态
 		rt.EventsEmit(app.ctx, "user:unregistered")
-	})
+	}) */
 
 	return appMenu
 }

@@ -82,6 +82,10 @@ func RunBatch(opt Options) error {
 func Run(opt Options) error {
 	ctx, err := readPDF(opt.Input)
 	if err != nil {
+		//  pdfcpu:
+		if strings.Contains(err.Error(), "pdfcpu:") {
+			return fmt.Errorf("此文档已加密过，不能再次加密！")
+		}
 		return err
 	}
 
@@ -143,17 +147,17 @@ func processPermissions(ctx *model.Context, opt Options) {
 	var permissions model.PermissionFlags = 0xF0C3 // PermissionsNone - 禁止所有操作
 
 	if opt.AllowedPrint {
-		permissions = model.PermissionsPrint
+		permissions |= model.PermissionsPrint
 	}
-	if opt.AllowedCopy {
-		permissions = model.PermissionExtract
+	if opt.AllowedCopy || opt.AllowedConvert {
+		permissions |= (model.PermissionExtract + model.PermissionExtractRev3)
 	}
 	if opt.AllowedEdit {
-		permissions = model.PermissionModify
+		permissions |= (model.PermissionModify + model.PermissionAssembleRev3 + model.PermissionFillRev3 + model.PermissionModAnnFillForm)
 	}
-	if opt.AllowedConvert {
-		permissions = model.PermissionAssembleRev3
-	}
+	/* if opt.AllowedConvert {
+		permissions |= model.PermissionExtract
+	} */
 	ctx.Permissions = permissions
 }
 

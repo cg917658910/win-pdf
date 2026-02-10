@@ -15,14 +15,14 @@
           <div class="action-buttons">
             <button @click="addFile">添加文件</button>
             <button @click="addFolder">添加文件夹</button>
-           <!--  <button @click="setExpire">设置文档时效</button> -->
+            <button @click="removeFileAll">清空列表</button>
           </div>
   
           <div class="file-list">
             <div class="file-item" v-for="(file, index) in files" :key="index">
               <span>{{ file.name }}</span>
               <span class="path">{{ file.path }}</span>
-              <button @click="removeFile(index)" style="margin-left:8px">删除</button>
+             <!--  <button @click="removeFile(index)" style="margin-left:8px">删除</button> -->
             </div>
           </div>
   
@@ -39,9 +39,9 @@
             <h3>加密选项</h3>
   
             <div class="checkbox-group" style="margin-bottom:15px;">
-              <label><input type="checkbox" v-model="options.copy"> 允许复制</label>
+              <label><input type="checkbox" v-model="options.copy"> 允许复制/转换</label>
               <label><input type="checkbox" v-model="options.edit"> 允许编辑</label>
-              <label><input type="checkbox" v-model="options.convert"> 允许转换</label>
+              <!-- <label><input type="checkbox" v-model="options.convert"> 允许转换</label> -->
               <label><input type="checkbox" v-model="options.print"> 允许打印</label>
             </div>
           </div>
@@ -110,7 +110,7 @@
       </div>
       <div v-if="showPwdModal" class="modal-overlay">
         <div class="modal">
-          <h3>设置文档密码</h3>
+          <h3>批量设置文档密码</h3>
           <input v-model="pwd" type="password" placeholder="请输入至少6位的密码" autofocus @keyup.enter="confirmPwdModal" />
           <div class="modal-actions">
             <button @click="confirmPwdModal">确定</button>
@@ -200,6 +200,9 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     }
   }
   
+  function removeFileAll() {
+    files.value = []
+  }
   function removeFile(index) {
     if (index >= 0 && index < files.value.length) {
       files.value.splice(index, 1)
