@@ -22,7 +22,7 @@
             <div class="file-item" v-for="(file, index) in files" :key="index">
               <span>{{ file.name }}</span>
               <span class="path">{{ file.path }}</span>
-             <!--  <button @click="removeFile(index)" style="margin-left:8px">删除</button> -->
+             <button @click="removeFile(index)" style="margin-left:8px">删除</button>
             </div>
           </div>
   
@@ -43,6 +43,7 @@
               <label><input type="checkbox" v-model="options.edit"> 允许编辑</label>
               <!-- <label><input type="checkbox" v-model="options.convert"> 允许转换</label> -->
               <label><input type="checkbox" v-model="options.print"> 允许打印</label>
+              <button class="watermark-btn" @click="openWatermarkModal">添加水印...</button>
             </div>
           </div>
           <div class="card">
@@ -70,7 +71,7 @@
               <input type="datetime-local" v-model="endTime" />
             </div>
           </div>
-          <div class="card-b pwd-card" id="user-password-card">
+          <div class="pwd-card" id="user-password-card">
             <!-- <h3>用户密码</h3> -->
             <div class="pwd-row">
               <button class="btn primary" @click="openPwdModal">设置文档密码</button>
@@ -118,6 +119,50 @@
           </div>
         </div>
       </div>
+      <div v-if="showWatermarkModal" class="modal-overlay">
+        <div class="modal watermark-modal">
+          <h3 class="modal-title">设置水印</h3>
+          <div class="watermark-form">
+            <label class="watermark-label">字体名称：</label>
+            <select v-model="watermarkFontName" class="watermark-select">
+              <option value="Helvetica">Helvetica</option>
+              <option value="Helvetica-Bold">Helvetica-Bold</option>
+              <option value="Helvetica-Oblique">Helvetica-Oblique</option>
+              <option value="Times-Roman">Times-Roman</option>
+              <option value="Times-Bold">Times-Bold</option>
+              <option value="Times-Italic">Times-Italic</option>
+              <option value="Courier">Courier</option>
+              <option value="Courier-Bold">Courier-Bold</option>
+              <option value="Courier-Oblique">Courier-Oblique</option>
+              <option value="MicrosoftYaHei">MicrosoftYaHei</option>
+              <option value="SimSun">SimSun</option>
+              <option value="SimHei">SimHei</option>
+              <option value="FangSong">FangSong</option>
+              <option value="KaiTi">KaiTi</option>
+              <option value="DengXian">DengXian</option>
+            </select>
+            <label class="watermark-label">字体颜色：</label>
+            <input v-model="watermarkColor" type="color" class="watermark-color" />
+            <label class="watermark-label">字体大小：</label>
+            <input v-model="watermarkFontSize" type="number" class="watermark-number" min="6" max="200" />
+            <label class="watermark-label">加粗：</label>
+            <label class="watermark-toggle-inline">
+              <input v-model="watermarkBold" type="checkbox" />
+              启用
+            </label>
+            <label class="watermark-label">旋转角度：</label>
+            <input v-model="watermarkRotation" type="number" class="watermark-number" min="-180" max="180" />
+            <label class="watermark-label">透明度：</label>
+            <input v-model="watermarkOpacity" type="number" class="watermark-number" step="0.05" min="0" max="1" />
+            <label class="watermark-label">水印内容：</label>
+            <textarea v-model="watermarkText" rows="2"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button @click="confirmWatermarkModal">设置</button>
+            <button @click="cancelWatermarkModal">取消</button>
+          </div>
+        </div>
+      </div>
     </div>
   </template>
   
@@ -141,9 +186,19 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     unsupportedTip: false,
     expiredTip: false,
   })
+  const watermarkEnabled = ref(false)
+  const watermarkText = ref("")
+  const watermarkDesc = ref("")
+  const showWatermarkModal = ref(false)
+  const watermarkFontName = ref("Helvetica")
+  const watermarkFontSize = ref(18)
+  const watermarkRotation = ref(-35)
+  const watermarkOpacity = ref(0.3)
+  const watermarkColor = ref("#808080")
+  const watermarkBold = ref(false)
   
   const unsupportedText = ref(
-    "文件显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！"
+    "文档显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！"
   )
   
   const expiredText = ref("您查看的文档已过期！")
@@ -225,6 +280,55 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       pwd.value = ""
       showPwdModal.value = false
     }
+    function openWatermarkModal() {
+      showWatermarkModal.value = true
+    }
+    function confirmWatermarkModal() {
+      watermarkText.value = (watermarkText.value || "").trim()
+      watermarkDesc.value = buildWatermarkDesc()
+      watermarkEnabled.value = watermarkText.value.length > 0
+      showWatermarkModal.value = false
+    }
+    function cancelWatermarkModal() {
+      showWatermarkModal.value = false
+    }
+    function buildWatermarkDesc() {
+      const baseFontName = (watermarkFontName.value || "Helvetica").trim()
+      const pickedFont = watermarkBold.value ? toBoldFont(baseFontName) : baseFontName
+      const fontSize = Number(watermarkFontSize.value) || 36
+      const rotation = Number(watermarkRotation.value) || 0
+      const opacity = Math.min(1, Math.max(0, Number(watermarkOpacity.value) || 0.3))
+      const color = (watermarkColor.value || "#808080").trim()
+      const fontName = needsCJKFont(watermarkText.value, pickedFont) ? "MicrosoftYaHei" : pickedFont
+      return `fontname:${fontName}, points:${fontSize}, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:c`
+    }
+    function toBoldFont(name) {
+      if (/bold/i.test(name)) return name
+      switch (name) {
+        case "Helvetica":
+        case "Helvetica-Oblique":
+          return "Helvetica-Bold"
+        case "Times-Roman":
+        case "Times-Italic":
+          return "Times-Bold"
+        case "Courier":
+        case "Courier-Oblique":
+          return "Courier-Bold"
+        default:
+          return name
+      }
+    }
+    function needsCJKFont(text, fontName) {
+      if (!text || !/[^\x00-\x7F]/.test(text)) return false
+      return (
+        fontName === "Helvetica" ||
+        fontName === "Helvetica-Oblique" ||
+        fontName === "Times-Roman" ||
+        fontName === "Times-Italic" ||
+        fontName === "Courier" ||
+        fontName === "Courier-Oblique"
+      )
+    }
   async function setExpire() {
     // 直接提交给后端，不再选择保存路径
     if (sending.value) return
@@ -258,7 +362,9 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     opts.OutputDir = folderPath
     opts.StartTime = startTime.value ? new Date(startTime.value).toISOString() : null
     opts.EndTime = endTime.value ? new Date(endTime.value).toISOString() : null
-    opts.Watermark = ""
+    opts.WatermarkEnabled = watermarkEnabled.value
+    opts.WatermarkText = watermarkText.value
+    opts.WatermarkDesc = watermarkDesc.value
     if(options.value.expiredTip){
       opts.ExperiredText = expiredText.value
     }
@@ -472,7 +578,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   
   .right-panel {
     width: 55%;
-    padding-left: 15px;
+    padding-left: 10px;
     /* 与左侧同高，内部自然滚动页面 */
     box-sizing: border-box;
   }
@@ -502,6 +608,56 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   gap: 4px;
   font-size: 14px;
 }
+  .watermark-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #9fb7d6;
+    background: #eaf2ff;
+    color: #1a4c86;
+    cursor: pointer;
+  }
+  .watermark-btn:hover {
+    background: #dbe9ff;
+  }
+  .watermark-modal {
+    width: 520px;
+  }
+  .watermark-form {
+    display: grid;
+    grid-template-columns: 90px 1fr 90px 1fr;
+    gap: 10px 12px;
+    align-items: center;
+  }
+  .watermark-label {
+    font-size: 13px;
+    color: #333;
+  }
+  .watermark-select,
+  .watermark-number {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  .watermark-color {
+    width: 100%;
+    height: 32px;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    box-sizing: border-box;
+    padding: 2px 4px;
+    background: #fff;
+  }
+  .watermark-toggle-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .watermark-form textarea {
+    grid-column: 2 / 5;
+  }
   .block {
     display: block;
     margin-top: 10px;
@@ -526,6 +682,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     align-items: center;
     gap: 24px;
     margin-top: 10px;
+    margin-bottom: 18px;
   }
   .time-row span {
     font-size: 14px;

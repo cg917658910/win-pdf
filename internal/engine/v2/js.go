@@ -42,7 +42,10 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
         if (ocgs && ocgs.length) {
             for (var i = 0; i < ocgs.length; i++) {
               if (ocgs[i]) {
-                ocgs[i].state = false;
+                // 关闭不是水印的 OCG
+                if (!ocgs[i].name || ocgs[i].name.indexOf("Watermark") !== 0) {
+                  ocgs[i].state = false;
+                }
               }
             }
         }

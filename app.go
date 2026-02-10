@@ -11,6 +11,7 @@ import (
 
 	"github.com/cg917658910/win-pdf/internal/engine/v2"
 	"github.com/cg917658910/win-pdf/internal/license"
+	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	rt "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -30,6 +31,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.initFonts()
 	a.showTrialMessage()
 }
 
@@ -47,6 +49,34 @@ func (a *App) initConfig() {
 	}
 	if err := license.LoadPublicKeyFromFile(pubPath); err != nil {
 		rt.LogErrorf(a.ctx, "加载公钥失败: %v", err)
+	}
+}
+
+// initFonts tries to install common Windows CJK fonts for watermark rendering.
+func (a *App) initFonts() {
+	candidates := []string{
+		`C:\Windows\Fonts\msyh.ttc`,   // Microsoft YaHei
+		`C:\Windows\Fonts\msyhbd.ttc`, // Microsoft YaHei Bold
+		`C:\Windows\Fonts\simsun.ttc`, // SimSun
+		`C:\Windows\Fonts\simhei.ttf`, // SimHei
+		`C:\Windows\Fonts\simfang.ttf`,
+		`C:\Windows\Fonts\fangsong.ttf`,
+		`C:\Windows\Fonts\kaiti.ttf`,
+		`C:\Windows\Fonts\deng.ttf`,   // DengXian
+		`C:\Windows\Fonts\Deng.ttf`,
+	}
+	var files []string
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			files = append(files, p)
+		}
+	}
+	if len(files) == 0 {
+		rt.LogPrintf(a.ctx, "initFonts: no CJK fonts found in Windows\\Fonts")
+		return
+	}
+	if err := api.InstallFonts(files); err != nil {
+		rt.LogPrintf(a.ctx, "initFonts: install fonts error: %v", err)
 	}
 }
 

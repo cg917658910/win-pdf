@@ -14,6 +14,9 @@ export namespace engine {
 	    PwdEnabled: boolean;
 	    UserPassword: string;
 	    OwnerPassword: string;
+	    WatermarkEnabled: boolean;
+	    WatermarkText: string;
+	    WatermarkDesc: string;
 	    AllowedPrint: boolean;
 	    AllowedCopy: boolean;
 	    AllowedEdit: boolean;
@@ -36,6 +39,9 @@ export namespace engine {
 	        this.PwdEnabled = source["PwdEnabled"];
 	        this.UserPassword = source["UserPassword"];
 	        this.OwnerPassword = source["OwnerPassword"];
+	        this.WatermarkEnabled = source["WatermarkEnabled"];
+	        this.WatermarkText = source["WatermarkText"];
+	        this.WatermarkDesc = source["WatermarkDesc"];
 	        this.AllowedPrint = source["AllowedPrint"];
 	        this.AllowedCopy = source["AllowedCopy"];
 	        this.AllowedEdit = source["AllowedEdit"];

@@ -9,23 +9,27 @@ import (
 	"time"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
 )
 
 // Options governs the processing behavior.
 type Options struct {
-	Input           string
-	Output          string
-	Files           string
-	OutputDir       string
-	StartTime       time.Time
-	EndTime         time.Time
-	ExperiredText   string
-	UnsupportedText string
-	PwdEnabled      bool
-	UserPassword    string
-	OwnerPassword   string
+	Input            string
+	Output           string
+	Files            string
+	OutputDir        string
+	StartTime        time.Time
+	EndTime          time.Time
+	ExperiredText    string
+	UnsupportedText  string
+	PwdEnabled       bool
+	UserPassword     string
+	OwnerPassword    string
+	WatermarkEnabled bool
+	WatermarkText    string
+	WatermarkDesc    string
 
 	// 打印/复制
 	AllowedPrint bool
@@ -38,7 +42,7 @@ type Options struct {
 
 const (
 	ownerPWMask = "cg"
-	maskNum     = 10
+	maskNum     = 1
 )
 
 // 批量处理入口
@@ -113,10 +117,13 @@ func processPDF(ctx *model.Context, opt Options) error {
 
 	conf := model.NewDefaultConfiguration()
 	ctx.Configuration = conf
+	if err := applyWatermarkToOriginalContent(ctx, opt); err != nil {
+		return fmt.Errorf("apply watermark: %w", err)
+	}
 	// 规范化时间：如果为零，设置为很早或很晚的时间，避免 JS 逻辑出错
 	start := normalizeTime(opt.StartTime, true)
 	end := normalizeTime(opt.EndTime, false)
-
+	//设置水印
 	for p := 1; p <= ctx.PageCount; p++ {
 		err := processPageStructured(ctx, p, opt, maskNum)
 		if err != nil {
@@ -130,6 +137,21 @@ func processPDF(ctx *model.Context, opt Options) error {
 	// 注入 OpenAction JS
 	injectOpenActionJS(ctx, start, end, opt.ExperiredText, opt.UnsupportedText)
 	return nil
+}
+
+// applyWatermarkToOriginalContent adds watermark into the original page content stream only.
+// This runs before we extract NormalContent into a Form XObject, so watermark becomes part of NormalContent.
+func applyWatermarkToOriginalContent(ctx *model.Context, opt Options) error {
+	if !opt.WatermarkEnabled || strings.TrimSpace(opt.WatermarkText) == "" {
+		return nil
+	}
+	desc := strings.TrimSpace(opt.WatermarkDesc)
+	fmt.Printf("Applying watermark to original content with desc: %s\n", desc)
+	wm, err := api.TextWatermark(opt.WatermarkText, desc, true, false, types.POINTS)
+	if err != nil {
+		return err
+	}
+	return pdfcpu.AddWatermarks(ctx, nil, wm)
 }
 
 // 处理加密
