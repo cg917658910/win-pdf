@@ -145,15 +145,26 @@
             <input v-model="watermarkColor" type="color" class="watermark-color" />
             <label class="watermark-label">字体大小：</label>
             <input v-model="watermarkFontSize" type="number" class="watermark-number" min="6" max="200" />
-            <label class="watermark-label">加粗：</label>
-            <label class="watermark-toggle-inline">
-              <input v-model="watermarkBold" type="checkbox" />
-              启用
-            </label>
+            <label class="watermark-label">位置：</label>
+            <select v-model="watermarkPos" class="watermark-select">
+              <option value="tl">左上</option>
+              <option value="tc">上中</option>
+              <option value="tr">右上</option>
+              <option value="l">左中</option>
+              <option value="c">居中</option>
+              <option value="r">右中</option>
+              <option value="bl">左下</option>
+              <option value="bc">下中</option>
+              <option value="br">右下</option>
+            </select>
             <label class="watermark-label">旋转角度：</label>
             <input v-model="watermarkRotation" type="number" class="watermark-number" min="-180" max="180" />
             <label class="watermark-label">透明度：</label>
             <input v-model="watermarkOpacity" type="number" class="watermark-number" step="0.05" min="0" max="1" />
+            <label class="watermark-label">偏移X：</label>
+            <input v-model="watermarkOffsetX" type="number" class="watermark-number" />
+            <label class="watermark-label">偏移Y：</label>
+            <input v-model="watermarkOffsetY" type="number" class="watermark-number" />
             <label class="watermark-label">水印内容：</label>
             <textarea v-model="watermarkText" rows="2"></textarea>
           </div>
@@ -195,7 +206,9 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const watermarkRotation = ref(-35)
   const watermarkOpacity = ref(0.3)
   const watermarkColor = ref("#808080")
-  const watermarkBold = ref(false)
+  const watermarkPos = ref("c")
+  const watermarkOffsetX = ref(0)
+  const watermarkOffsetY = ref(0)
   
   const unsupportedText = ref(
     "文档显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！"
@@ -293,30 +306,16 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       showWatermarkModal.value = false
     }
     function buildWatermarkDesc() {
-      const baseFontName = (watermarkFontName.value || "Helvetica").trim()
-      const pickedFont = watermarkBold.value ? toBoldFont(baseFontName) : baseFontName
+      const pickedFont = (watermarkFontName.value || "Helvetica").trim()
       const fontSize = Number(watermarkFontSize.value) || 36
       const rotation = Number(watermarkRotation.value) || 0
       const opacity = Math.min(1, Math.max(0, Number(watermarkOpacity.value) || 0.3))
       const color = (watermarkColor.value || "#808080").trim()
+      const pos = (watermarkPos.value || "c").trim()
+      const offX = Number(watermarkOffsetX.value) || 0
+      const offY = Number(watermarkOffsetY.value) || 0
       const fontName = needsCJKFont(watermarkText.value, pickedFont) ? "MicrosoftYaHei" : pickedFont
-      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:c`
-    }
-    function toBoldFont(name) {
-      if (/bold/i.test(name)) return name
-      switch (name) {
-        case "Helvetica":
-        case "Helvetica-Oblique":
-          return "Helvetica-Bold"
-        case "Times-Roman":
-        case "Times-Italic":
-          return "Times-Bold"
-        case "Courier":
-        case "Courier-Oblique":
-          return "Courier-Bold"
-        default:
-          return name
-      }
+      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:${pos}, off:${offX} ${offY}`
     }
     function needsCJKFont(text, fontName) {
       if (!text || !/[^\x00-\x7F]/.test(text)) return false
@@ -648,12 +647,6 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     box-sizing: border-box;
     padding: 2px 4px;
     background: #fff;
-  }
-  .watermark-toggle-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
   }
   .watermark-form textarea {
     grid-column: 2 / 5;
