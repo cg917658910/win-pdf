@@ -300,7 +300,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       const opacity = Math.min(1, Math.max(0, Number(watermarkOpacity.value) || 0.3))
       const color = (watermarkColor.value || "#808080").trim()
       const fontName = needsCJKFont(watermarkText.value, pickedFont) ? "MicrosoftYaHei" : pickedFont
-      return `fontname:${fontName}, points:${fontSize}, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:c`
+      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:c`
     }
     function toBoldFont(name) {
       if (/bold/i.test(name)) return name

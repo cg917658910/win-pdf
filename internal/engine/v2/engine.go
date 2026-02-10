@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	pdffont "github.com/pdfcpu/pdfcpu/pkg/font"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
@@ -146,12 +147,120 @@ func applyWatermarkToOriginalContent(ctx *model.Context, opt Options) error {
 		return nil
 	}
 	desc := strings.TrimSpace(opt.WatermarkDesc)
+	desc = ensureCJKFontForWatermark(opt.WatermarkText, desc)
 	fmt.Printf("Applying watermark to original content with desc: %s\n", desc)
 	wm, err := api.TextWatermark(opt.WatermarkText, desc, true, false, types.POINTS)
 	if err != nil {
 		return err
 	}
 	return pdfcpu.AddWatermarks(ctx, nil, wm)
+}
+
+func ensureCJKFontForWatermark(text, desc string) string {
+	if !hasNonASCII(text) {
+		return desc
+	}
+	items := parseWatermarkDesc(desc)
+	fontKey, fontVal := findFontParam(items)
+	if fontVal != "" && pdffont.IsUserFont(fontVal) {
+		return joinWatermarkDesc(items)
+	}
+	// If no user font set or core font is used, pick a CJK-capable user font.
+	cjkFont := pickCJKUserFont()
+	if cjkFont == "" {
+		fmt.Printf("No user CJK font installed; watermark text may not render.\n")
+		return joinWatermarkDesc(items)
+	}
+	if fontKey == "" {
+		items = append(items, wmItem{key: "fontname", raw: "fontname:" + cjkFont})
+	} else {
+		for i := range items {
+			if items[i].key == fontKey {
+				items[i].raw = fontKey + ":" + cjkFont
+				break
+			}
+		}
+	}
+	return joinWatermarkDesc(items)
+}
+
+func hasNonASCII(s string) bool {
+	for _, r := range s {
+		if r > 0x7F {
+			return true
+		}
+	}
+	return false
+}
+
+type wmItem struct {
+	key string
+	raw string
+}
+
+func parseWatermarkDesc(desc string) []wmItem {
+	parts := strings.Split(desc, ",")
+	items := make([]wmItem, 0, len(parts))
+	for _, p := range parts {
+		raw := strings.TrimSpace(p)
+		if raw == "" {
+			continue
+		}
+		key := strings.ToLower(raw)
+		if i := strings.IndexAny(raw, ":="); i >= 0 {
+			key = strings.ToLower(strings.TrimSpace(raw[:i]))
+		}
+		items = append(items, wmItem{key: key, raw: raw})
+	}
+	return items
+}
+
+func joinWatermarkDesc(items []wmItem) string {
+	parts := make([]string, 0, len(items))
+	for _, it := range items {
+		if it.raw != "" {
+			parts = append(parts, it.raw)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+func findFontParam(items []wmItem) (string, string) {
+	for _, it := range items {
+		switch it.key {
+		case "font", "fontname", "fo":
+			if i := strings.IndexAny(it.raw, ":="); i >= 0 {
+				return it.key, strings.TrimSpace(it.raw[i+1:])
+			}
+			return it.key, ""
+		}
+	}
+	return "", ""
+}
+
+func pickCJKUserFont() string {
+	preferred := []string{
+		"MicrosoftYaHei",
+		"MicrosoftYaHeiUI",
+		"DengXian",
+		"DengXian-Regular",
+		"SimSun",
+		"SimHei",
+		"FangSong",
+		"KaiTi",
+	}
+	userFonts := pdffont.UserFontNames()
+	if len(userFonts) == 0 {
+		return ""
+	}
+	for _, p := range preferred {
+		for _, f := range userFonts {
+			if strings.EqualFold(p, f) {
+				return f
+			}
+		}
+	}
+	return userFonts[0]
 }
 
 // 处理加密

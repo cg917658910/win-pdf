@@ -12,6 +12,7 @@ import (
 	"github.com/cg917658910/win-pdf/internal/engine/v2"
 	"github.com/cg917658910/win-pdf/internal/license"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	rt "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -54,6 +55,8 @@ func (a *App) initConfig() {
 
 // initFonts tries to install common Windows CJK fonts for watermark rendering.
 func (a *App) initFonts() {
+	// ensure pdfcpu config and font dir initialized
+	_ = model.NewDefaultConfiguration()
 	candidates := []string{
 		`C:\Windows\Fonts\msyh.ttc`,   // Microsoft YaHei
 		`C:\Windows\Fonts\msyhbd.ttc`, // Microsoft YaHei Bold

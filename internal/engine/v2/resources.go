@@ -19,7 +19,7 @@ func injectOCGResources(
 	textOCG *types.IndirectRef,
 ) {
 	res := getResourceDict(ctx, pageDict)
-	xobj := res["XObject"].(types.Dict)
+	xobj := ensureXObjectDict(ctx, res)
 	// 注册 NormalContent（如果有）
 	if normalXObj != nil {
 		xobj["NormalContent"] = *normalXObj
@@ -28,14 +28,12 @@ func injectOCGResources(
 		xobj[fmt.Sprintf("mask_%02d_%02d", pageNr, i)] = *m
 	}
 
-	xobj[fmt.Sprintf("text_%02d", pageNr)] = *text
+	if text != nil {
+		xobj[fmt.Sprintf("text_%02d", pageNr)] = *text
+	}
 
 	// Properties
-	props, ok := res["Properties"].(types.Dict)
-	if !ok {
-		props = types.Dict{}
-		res["Properties"] = props
-	}
+	props := ensurePropertiesDict(ctx, res)
 	for i, ocg := range maskOCGs {
 		props[fmt.Sprintf("mask_%02d_%02d", pageNr, i)] = *ocg
 	}
@@ -58,23 +56,15 @@ func getResourceDict(ctx *model.Context, pageDict types.Dict) types.Dict {
 				res = rd
 			} else {
 				res = types.Dict{}
-				pageDict["Resources"] = res
 			}
 		default:
 			// 非预期类型，创建新的 Resources
 			res = types.Dict{}
-			pageDict["Resources"] = res
 		}
 	} else {
 		res = types.Dict{}
-		pageDict["Resources"] = res
 	}
-
-	xobj, ok := res["XObject"].(types.Dict)
-	if !ok {
-		xobj = types.Dict{}
-		res["XObject"] = xobj
-	}
+	pageDict["Resources"] = res
 	return res
 }
 
@@ -86,29 +76,61 @@ func injectExpiredOCGResources(
 	expiredOCG *types.IndirectRef,
 ) {
 	res := getResourceDict(ctx, pageDict)
-	xobj := res["XObject"].(types.Dict)
-	xobj[fmt.Sprintf("expired_%02d", pageNr)] = *expiredText
+	xobj := ensureXObjectDict(ctx, res)
+	if expiredText != nil {
+		xobj[fmt.Sprintf("expired_%02d", pageNr)] = *expiredText
+	}
 	// Properties
 
-	props, ok := res["Properties"].(types.Dict)
-	if !ok {
-		props = types.Dict{}
-		res["Properties"] = props
-	}
+	props := ensurePropertiesDict(ctx, res)
 	props[fmt.Sprintf("expired_%02d", pageNr)] = *expiredOCG
 	return
 }
 
 func injectExpiredMaskOCGResources(ctx *model.Context, pageDict types.Dict, pageNr int, expiredMaskXObj *types.IndirectRef, expiredMaskOCG *types.IndirectRef) {
 	res := getResourceDict(ctx, pageDict)
-	xobj := res["XObject"].(types.Dict)
-	xobj[fmt.Sprintf("expired_mask_%02d", pageNr)] = *expiredMaskXObj
-	// Properties
-	props, ok := res["Properties"].(types.Dict)
-	if !ok {
-		props = types.Dict{}
-		res["Properties"] = props
+	xobj := ensureXObjectDict(ctx, res)
+	if expiredMaskXObj != nil {
+		xobj[fmt.Sprintf("expired_mask_%02d", pageNr)] = *expiredMaskXObj
 	}
+	// Properties
+	props := ensurePropertiesDict(ctx, res)
 	props[fmt.Sprintf("expired_mask_%02d", pageNr)] = *expiredMaskOCG
 	return
+}
+
+func ensureXObjectDict(ctx *model.Context, res types.Dict) types.Dict {
+	if xo, ok := res["XObject"]; ok && xo != nil {
+		switch v := xo.(type) {
+		case types.Dict:
+			return v
+		case types.IndirectRef:
+			rd, err := ctx.DereferenceDict(v)
+			if err == nil && rd != nil {
+				res["XObject"] = rd
+				return rd
+			}
+		}
+	}
+	xobj := types.Dict{}
+	res["XObject"] = xobj
+	return xobj
+}
+
+func ensurePropertiesDict(ctx *model.Context, res types.Dict) types.Dict {
+	if p, ok := res["Properties"]; ok && p != nil {
+		switch v := p.(type) {
+		case types.Dict:
+			return v
+		case types.IndirectRef:
+			rd, err := ctx.DereferenceDict(v)
+			if err == nil && rd != nil {
+				res["Properties"] = rd
+				return rd
+			}
+		}
+	}
+	props := types.Dict{}
+	res["Properties"] = props
+	return props
 }
