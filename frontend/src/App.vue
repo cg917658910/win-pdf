@@ -1,11 +1,11 @@
-<template>
+﻿<template>
     <div class="app-container">
       <!-- 使用 Go 的原生多文件选择对话框，不需要浏览器 file input -->
       <!-- 顶部菜单 -->
       <!-- <div class="top-tabs">
         <button :class="{ active: activeTab === 'file' }" @click="activeTab='file'">文件</button>
         <button :class="{ active: activeTab === 'register' }" @click="activeTab='register'">注册</button>
-        <button :class="{ active: activeTab === 'menu' }" @click="activeTab='menu'">菜单栏</button>
+        <button :class="{ active: activeTab === 'menu' }" @click="activeTab='menu'">菜单</button>
       </div> -->
   
       <!-- 主体 -->
@@ -27,7 +27,7 @@
           </div>
   
           <!-- <div class="tips">
-            <p>说明：</p>
+            <p>说明</p>
             <p>1、添加进来的PDF文件以文件名加路径的形式展示。</p>
             <p>2、在文件列表上右键选中某个文件可以删除。</p>
           </div> -->
@@ -91,7 +91,7 @@
             ©远信软件技术服务有限公司&nbsp;&nbsp;2026.02&nbsp;&nbsp;未经许可，禁止售卖、传播，违者必究！
         </div>
       </div>
-      <!-- 注册模态 -->
+      <!-- 注册模块-->
       <div v-if="showRegisterModal" class="modal-overlay">
         <div class="modal register-modal">
           <h3 class="modal-title">在线注册</h3>
@@ -244,7 +244,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
         addFilesAndUnique(paths)
       } catch (err) {
         console.error('OpenMultipleFilesDialog error', err)
-        await MessageDialog('提示', err)
+        await MessageDialog('提示', err, 'error')
       }
     })()
   }
@@ -264,7 +264,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
      addFilesAndUnique(pdfPaths)
     } catch (err) {
      LogPrint("选择文件夹已取消或出错"+err)  
-      await MessageDialog('提示', "选择文件夹已取消或出错")
+      await MessageDialog('提示', "选择文件夹已取消或出错", 'warning')
     }
   }
   
@@ -284,7 +284,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
 
     async function confirmPwdModal() {
       if (!pwd.value || pwd.value.length < 6) {
-        await MessageDialog('提示', '密码至少6位')
+        await MessageDialog('提示', '密码至少6位', 'warning')
         return
       }
       showPwdModal.value = false
@@ -332,12 +332,12 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     // 直接提交给后端，不再选择保存路径
     if (sending.value) return
     if (files.value.length === 0) {
-      await MessageDialog('提示', '请先通过“添加文件”选择要处理的文件')
+      await MessageDialog('提示', '请先通过“添加文件”选择要处理的文件', 'warning')
       return
     }
     // 验证密码长度
     if ((pwd.value && pwd.value.length < 6)) {
-      await MessageDialog('提示', '密码至少6位')
+      await MessageDialog('提示', '密码至少6位', 'warning')
       return
     }
     // 弹出原生选择目录对话框以获取保存目录（OpenDirectoryDialog）
@@ -348,11 +348,11 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       try { LogPrint(folderPath) } catch (e) { console.debug('LogPrint error', e) }
     } catch (err) {
       console.error('OpenDirectoryDialog error', err)
-      await MessageDialog('提示', '选择目录已取消或出错')
+      await MessageDialog('提示', '选择目录已取消或出错', 'info')
       return
     }
     if (!folderPath) {
-      await MessageDialog('提示', '未选择保存目录')
+      await MessageDialog('提示', '未选择保存目录', 'warning')
       return
     }
   
@@ -382,11 +382,11 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     try {
       sending.value = true
       const res =await SetExpiry(opts)
-      await MessageDialog('提示', res)
+      await MessageDialog('提示', res,'info')
       LogPrint(res)
     } catch (err) {
       console.error('SetExpiry error', err)
-      await MessageDialog('错误', '设置文档时效请求失败：' + (err && err.message ? err.message : err))
+      await MessageDialog('错误', '设置文档时效请求失败：' + (err && err.message ? err.message : err), 'error')
     } finally {
       sending.value = false
     }
@@ -394,19 +394,19 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
 
   async function onRegister() {
     if (!activationCode.value) {
-      await MessageDialog('提示', '请输入注册码')
+      await MessageDialog('提示', '请输入注册码', 'warning')
       return
     }
     try {
       registerLoading.value = true
       const res = await Register(activationCode.value)
-      await MessageDialog('提示', res || '注册成功')
+      await MessageDialog('提示', res || '注册成功', 'info')
       showRegisterModal.value = false
       // 更新已注册状态和机器码显示
       machineCode.value = await GetMachineCode()
     } catch (err) {
       console.error('Register error', err)
-      await MessageDialog('错误',  (err && err.message ? err.message : err))
+      await MessageDialog('错误',  (err && err.message ? err.message : err), 'error')
     } finally {
       registerLoading.value = false
     }
@@ -421,7 +421,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     try {
       if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(machineCode.value)
-        await MessageDialog('提示', '机器码已复制到剪贴板')
+        await MessageDialog('提示', '机器码已复制到剪贴板', 'info')
       } else {
         // fallback: create temporary textarea
         const ta = document.createElement('textarea')
@@ -430,11 +430,11 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
         ta.select()
         try { document.execCommand('copy') } catch (e) { console.debug('execCommand copy failed', e) }
         ta.remove()
-        await MessageDialog('提示', '机器码已复制到剪贴板')
+        await MessageDialog('提示', '机器码已复制到剪贴板', 'info')
       }
     } catch (e) {
       console.error('copyMachineCode error', e)
-      await MessageDialog('错误', '复制失败：' + (e && e.message ? e.message : e))
+      await MessageDialog('错误', '复制失败：' + (e && e.message ? e.message : e), 'error')
     }
   }
 
@@ -450,7 +450,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       EventsOn('menu:register', async () => {
         const reg = await IsRegistered()
         if (reg) {
-          await MessageDialog('提示', '软件已注册')
+          await MessageDialog('提示', '软件已注册', 'info')
           return
         }
         showRegisterModal.value = true
@@ -532,15 +532,15 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     overflow-y: auto; /* 纵向滚动 */
     padding: 5px;
     padding-bottom: 60px; /* 为底部预留更多空间，避免最后一条被 footer 遮挡 */
-    padding-right: 8px; /* 预留滚动条空间，避免文本被挡住 */
+    padding-right: 8px; /* 预留滚动条空间，避免文本被挡住*/
     background: #fafafa;
-    /* 占据除按钮外的剩余高度 */
+    /* 占据除按钮外的剩余高度*/
     flex: 1 1 auto;
   }
   
   .file-item {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 72px; /* 名称、路径、删除按钮固定宽度 */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 72px; /* 名称、路径、删除按钮固定宽度*/
     align-items: center;
     column-gap: 8px;
     font-size: 14px;
@@ -552,12 +552,12 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   .file-item .path {
     overflow: hidden;
     white-space: nowrap;
-    text-overflow: ellipsis; /* 太长用省略号，避免挤压删除按钮 */
+    text-overflow: ellipsis; /* 太长用省略号，避免挤压删除按钮*/
   }
   
   .file-item button {
     justify-self: end;
-    width: 64px;           /* 删除按钮固定宽度，保证完全显示 */
+    width: 64px;           /* 删除按钮固定宽度，保证完全显示*/
     padding: 6px 0;
   }
   
@@ -863,3 +863,11 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     color: #fff;
   }
   </style>
+
+
+
+
+
+
+
+

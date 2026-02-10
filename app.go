@@ -65,7 +65,7 @@ func (a *App) initFonts() {
 		`C:\Windows\Fonts\simfang.ttf`,
 		`C:\Windows\Fonts\fangsong.ttf`,
 		`C:\Windows\Fonts\kaiti.ttf`,
-		`C:\Windows\Fonts\deng.ttf`,   // DengXian
+		`C:\Windows\Fonts\deng.ttf`, // DengXian
 		`C:\Windows\Fonts\Deng.ttf`,
 	}
 	var files []string
@@ -89,7 +89,7 @@ func (a *App) Greet(name string) string {
 }
 
 // 设置有效期
-func (a *App) SetExpiry(opts engine.Options) string {
+func (a *App) SetExpiry(opts engine.Options) (string, error) {
 	rt.LogPrintf(a.ctx, "设置有效期: %+v", opts)
 	// do something
 	// 检查opts.Files和opts.OutputDir
@@ -97,25 +97,25 @@ func (a *App) SetExpiry(opts engine.Options) string {
 	// 1.Files最少1个，最多上传10个，;这个隔开的
 	filesNum := strings.Count(opts.Files, ";") + 1
 	if filesNum < 1 || filesNum > 10 {
-		return fmt.Sprintf("错误：请选择1到10个文件，当前选择了%d个文件", filesNum)
+		return "", fmt.Errorf("错误：请选择1到10个文件，当前选择了%d个文件", filesNum)
 	}
 	// 2.OutputDir不能为空
 	if strings.TrimSpace(opts.OutputDir) == "" {
-		return fmt.Sprintf("错误：请选择输出目录")
+		return "", fmt.Errorf("错误：请选择输出目录")
 	}
 	// 3.有效期区间最短有1分钟，最高10年
 	if opts.StartTime.IsZero() || opts.EndTime.IsZero() {
-		return fmt.Sprintf("错误：请设置有效的开始时间和结束时间")
+		return "", fmt.Errorf("错误：请设置有效的开始时间和结束时间")
 	}
 	if opts.EndTime.Sub(opts.StartTime) < 1*time.Minute {
-		return fmt.Sprintf("错误：有效期区间最短为1分钟")
+		return "", fmt.Errorf("错误：有效期区间最短为1分钟")
 	}
 	if opts.EndTime.Sub(opts.StartTime) > 100*365*24*time.Hour {
-		return fmt.Sprintf("错误：有效期区间最长为100年")
+		return "", fmt.Errorf("错误：有效期区间最长为100年")
 	}
 	// 至少6位
 	if strings.TrimSpace(opts.UserPassword) != "" && len(opts.UserPassword) < 6 {
-		return fmt.Sprintf("错误：用户密码长度至少6位")
+		return "", fmt.Errorf("错误：用户密码长度至少6位")
 	}
 	// 未注册用户只能处理最多1个文件
 	isActivated, _, err := license.IsActivated()
@@ -123,14 +123,14 @@ func (a *App) SetExpiry(opts engine.Options) string {
 		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err)
 	}
 	if !isActivated && filesNum > 1 {
-		return fmt.Sprintf("错误：未注册用户只能处理1个文件，请注册后使用更多功能")
+		return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能")
 	}
 	err = engine.RunBatch(opts)
 	if err != nil {
-		return fmt.Sprintf("%v", err)
+		return "", fmt.Errorf("%v", err)
 	}
 
-	return fmt.Sprintf("所有文档设置成功")
+	return fmt.Sprintf("所有文档设置成功"), nil
 }
 
 // IsRegistered 返回当前是否已注册（调用 internal/auth）
@@ -242,13 +242,30 @@ func (a *App) OpenMultipleFilesDialog() ([]string, error) {
 }
 
 // MessageDialog 使用 Wails 原生对话框显示消息并返回用户选择结果
-func (a *App) MessageDialog(title, message string) (string, error) {
-	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{Title: title, Message: message})
+func (a *App) MessageDialog(title, message, dialogType string) (string, error) {
+	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{
+		Title:   title,
+		Message: message,
+		Type:    mapDialogType(dialogType),
+	})
 	if err != nil {
 		rt.LogPrintf(a.ctx, "MessageDialog error: %v", err)
 		return "", err
 	}
 	return res, nil
+}
+
+func mapDialogType(t string) rt.DialogType {
+	switch strings.ToLower(strings.TrimSpace(t)) {
+	case "error", "err":
+		return rt.ErrorDialog
+	case "warning", "warn":
+		return rt.WarningDialog
+	case "question", "ask", "confirm":
+		return rt.QuestionDialog
+	default:
+		return rt.InfoDialog
+	}
 }
 func (a *App) GetTitleWithRegStatus() string {
 	title := "PDF文档有效期设置工具"
@@ -276,6 +293,7 @@ func NewAppMenu(app *App) *menu.Menu {
 			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 				Title:   "错误",
 				Message: fmt.Sprintf("选择文件出错：%v", err),
+				Type:    rt.ErrorDialog,
 			})
 			return
 		}
@@ -290,6 +308,7 @@ func NewAppMenu(app *App) *menu.Menu {
 			rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 				Title:   "错误",
 				Message: fmt.Sprintf("选择文件夹出错：%v", err),
+				Type:    rt.ErrorDialog,
 			})
 			return
 		}

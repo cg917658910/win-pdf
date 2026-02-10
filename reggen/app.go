@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reggen/license"
+	"strings"
 
 	rt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -28,7 +29,7 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) initConfig() {
 	priPath := "./config/server_private.pem"
 	if _, err := os.Stat(priPath); err != nil {
-		rt.LogErrorf(a.ctx, "私钥文件 %s 未找到 err %s", priPath, err)
+		rt.LogErrorf(a.ctx, "私钥文件 %s 未找�?err %s", priPath, err)
 	}
 	if err := license.LoadPrivateKeyFromFile(priPath); err != nil {
 		rt.LogErrorf(a.ctx, "加载私钥失败: %v", err)
@@ -44,12 +45,28 @@ func (a *App) GenerateRegCode(machineCode string, expiryUnix int64) (string, err
 	return license.GenerateRegCode(machineCode, expiryUnix)
 }
 
-func (a *App) MessageDialog(title, message string) (string, error) {
-	// 可选设置类型/按钮等，使用默认选项显示信息
-	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{Title: title, Message: message})
+func (a *App) MessageDialog(title, message, dialogType string) (string, error) {
+	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{
+		Title:   title,
+		Message: message,
+		Type:    mapDialogType(dialogType),
+	})
 	if err != nil {
 		rt.LogPrintf(a.ctx, "MessageDialog error: %v", err)
 		return "", err
 	}
 	return res, nil
+}
+
+func mapDialogType(t string) rt.DialogType {
+	switch strings.ToLower(strings.TrimSpace(t)) {
+	case "error", "err":
+		return rt.ErrorDialog
+	case "warning", "warn":
+		return rt.WarningDialog
+	case "question", "ask", "confirm":
+		return rt.QuestionDialog
+	default:
+		return rt.InfoDialog
+	}
 }
