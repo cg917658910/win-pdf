@@ -88,7 +88,7 @@
             <img src="./assets/images/logo.png" alt="logo" />
           </div>
         <div>
-            ©远信软件技术服务有限公司&nbsp;&nbsp;2026.02&nbsp;&nbsp;未经许可，禁止售卖、传播，违者必究！
+            ©远信软件技术服务有限公司&nbsp;&nbsp;2026&nbsp;&nbsp;未经许可，禁止售卖、传播，违者必究！
         </div>
       </div>
       <!-- 注册模块-->
