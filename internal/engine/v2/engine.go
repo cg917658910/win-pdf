@@ -1,11 +1,13 @@
-package engine
+﻿package engine
 
 import (
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
@@ -49,40 +51,77 @@ const (
 )
 
 // 批量处理入口
-func RunBatch(opt Options) error {
-	// 解析 opt.Files，按;或,分割
+func RunBatch(opt Options) (successCount int, err error) {
 	if opt.Files == "" {
-		return fmt.Errorf("no files provided for batch run")
+		return successCount, fmt.Errorf("no files provided for batch run")
 	}
-	seps := []string{";", ","}
-	raw := opt.Files
-	for _, s := range seps {
-		raw = strings.ReplaceAll(raw, s, ";")
-	}
+
+	raw := strings.ReplaceAll(opt.Files, ",", ";")
 	parts := strings.Split(raw, ";")
-	var firstErr error
+	files := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		// 为当前文件构造专属 Options
-		cur := opt
-		cur.Input = p
-		// 构造输出路径：优先 OutputDir，其次与输入同目录
-		cur.Output = filepath.Join(cur.OutputDir, filepath.Base(p))
-		fmt.Printf("Running batch for %s -> %s\n", cur.Input, cur.Output)
-		if err := Run(cur); err != nil {
-			fmt.Printf("RunBatch error for %s: %v\n", p, err)
-			if firstErr == nil {
-				firstErr = err
-			}
-			// continue processing remaining files
-		} else {
-			fmt.Printf("RunBatch completed for %s\n", p)
+		if p != "" {
+			files = append(files, p)
 		}
 	}
-	return firstErr
+	if len(files) == 0 {
+		return successCount, fmt.Errorf("no valid files provided for batch run")
+	}
+
+	startedAt := time.Now()
+	workerCount := runtime.NumCPU()
+	if workerCount < 1 {
+		workerCount = 1
+	}
+	if workerCount > len(files) {
+		workerCount = len(files)
+	}
+
+	var (
+		firstErr error
+		mu       sync.Mutex
+		wg       sync.WaitGroup
+	)
+	jobs := make(chan string, len(files))
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for p := range jobs {
+				cur := opt
+				cur.Input = p
+				cur.Output = filepath.Join(cur.OutputDir, filepath.Base(p))
+				fmt.Printf("Running batch for %s -> %s\n", cur.Input, cur.Output)
+
+				if runErr := Run(cur); runErr != nil {
+					fmt.Printf("RunBatch error for %s: %v\n", p, runErr)
+					mu.Lock()
+					if firstErr == nil {
+						firstErr = runErr
+					}
+					mu.Unlock()
+					continue
+				}
+
+				fmt.Printf("RunBatch completed for %s\n", p)
+				mu.Lock()
+				successCount++
+				mu.Unlock()
+			}
+		}()
+	}
+
+	for _, p := range files {
+		jobs <- p
+	}
+	close(jobs)
+	wg.Wait()
+
+	elapsed := time.Since(startedAt)
+	fmt.Printf("RunBatch finished in %s: %d/%d files processed successfully.\n", elapsed.Round(time.Second), successCount, len(files))
+	return successCount, firstErr
 }
 
 // Run executes the full pipeline: read -> process -> write.
@@ -133,7 +172,7 @@ func processPDF(ctx *model.Context, opt Options) error {
 	}
 	start := normalizeTime(startTime, true)
 	end := normalizeTime(endTime, false)
-	//设置水印
+	// 处理页面
 	for p := 1; p <= ctx.PageCount; p++ {
 		err := processPageStructured(ctx, p, opt, maskNum)
 		if err != nil {
@@ -394,8 +433,8 @@ func processEncryption(ctx *model.Context, opt Options) {
 
 // 处理权限
 func processPermissions(ctx *model.Context, opt Options) {
-	// 处理权限
-	var permissions model.PermissionFlags = 0xF0C3 // PermissionsNone - 禁止所有操作
+	// 以“默认禁止全部操作”为基础，再按选项开放权限
+	var permissions model.PermissionFlags = 0xF0C3 // PermissionsNone
 
 	if opt.AllowedPrint {
 		permissions |= model.PermissionsPrint

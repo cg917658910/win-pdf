@@ -29,7 +29,7 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) initConfig() {
 	priPath := "./config/server_private.pem"
 	if _, err := os.Stat(priPath); err != nil {
-		rt.LogErrorf(a.ctx, "私钥文件 %s 未找�?err %s", priPath, err)
+		rt.LogErrorf(a.ctx, "私钥文件 %s 未找到, err %s", priPath, err)
 	}
 	if err := license.LoadPrivateKeyFromFile(priPath); err != nil {
 		rt.LogErrorf(a.ctx, "加载私钥失败: %v", err)

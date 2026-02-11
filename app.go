@@ -90,8 +90,8 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 	// Todo:
 	// 1.Files最少1个，最多上传10个，;这个隔开的
 	filesNum := strings.Count(opts.Files, ";") + 1
-	if filesNum < 1 || filesNum > 10 {
-		return "", fmt.Errorf("错误：请选择1到10个文件，当前选择了%d个文件", filesNum)
+	if filesNum < 1 || filesNum > 50 {
+		return "", fmt.Errorf("错误：请选择1到50个文件，当前选择了%d个文件", filesNum)
 	}
 	// 2.OutputDir不能为空
 	if strings.TrimSpace(opts.OutputDir) == "" {
@@ -118,10 +118,10 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err)
 	}
 	if !isActivated && filesNum > 1 {
-		return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能")
+		//return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能")
 	}
-	err = engine.RunBatch(opts)
-	if err != nil {
+	successCount, err := engine.RunBatch(opts)
+	if successCount == 0 && err != nil {
 		return "", fmt.Errorf("%v", err)
 	}
 
@@ -373,7 +373,7 @@ func NewAppMenu(app *App) *menu.Menu {
 		//显示邮箱地址
 		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 			Title:   "联系我们",
-			Message: "如有任何问题或建议，请联系邮箱：dream9188@163.com。",
+			Message: "	如有任何问题或建议，请联系邮箱：dream9188@163.com。",
 		})
 	})
 	/* registerMenu.AddText("注销", nil, func(_ *menu.CallbackData) {

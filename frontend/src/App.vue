@@ -74,9 +74,12 @@
           <div class="pwd-card" id="user-password-card">
             <!-- <h3>用户密码</h3> -->
             <div class="pwd-row">
-              <button class="btn primary" @click="openPwdModal">设置文档密码</button>
-              <button class="btn primary" @click="setExpire">点击完成设置</button>
+              <button class="btn primary" @click="openPwdModal" :disabled="sending">设置文档密码</button>
+              <button class="btn primary" @click="setExpire" :disabled="sending">
+                {{ sending ? "设置中..." : "点击完成设置" }}
+              </button>
             </div>
+            <p v-if="runStatus" class="run-status">{{ runStatus }}</p>
           </div>
          
         </div>
@@ -164,7 +167,7 @@
             <textarea v-model="watermarkText" rows="2"></textarea>
           </div>
           <div class="modal-actions">
-            <button @click="confirmWatermarkModal">设置</button>
+            <button @click="confirmWatermarkModal">确定</button>
             <button @click="cancelWatermarkModal">取消</button>
           </div>
         </div>
@@ -197,8 +200,8 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const watermarkDesc = ref("")
   const showWatermarkModal = ref(false)
   const watermarkFontName = ref("Helvetica")
-  const watermarkFontSize = ref(18)
-  const watermarkRotation = ref(-35)
+  const watermarkFontSize = ref(25)
+  const watermarkRotation = ref(15)
   const watermarkOpacity = ref(0.3)
   const watermarkColor = ref("#808080")
   const watermarkPos = ref("c")
@@ -262,6 +265,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const startTime = ref(nowStr)
   const endTime = ref(nowStr)
   const sending = ref(false)
+  const runStatus = ref("")
   const fileInput = ref(null)
   
   function addFile() {
@@ -361,6 +365,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   async function setExpire() {
     // 直接提交给后端，不再选择保存路径
     if (sending.value) return
+    runStatus.value = ""
     if (files.value.length === 0) {
       await MessageDialog('提示', '请先通过“添加文件”选择要处理的文件', 'warning')
       return
@@ -371,6 +376,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       return
     }
     // 弹出原生选择目录对话框以获取保存目录（OpenDirectoryDialog）
+    //runStatus.value = "请选择输出目录..."
     let folderPath = ''
     try {
       folderPath = await OpenDirectoryDialog()
@@ -383,6 +389,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     }
     if (!folderPath) {
       await MessageDialog('提示', '未选择保存目录', 'warning')
+      runStatus.value = ""
       return
     }
   
@@ -413,12 +420,15 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
 
     try {
       sending.value = true
+      runStatus.value = "正在批量设置，请稍候..."
       const res =await SetExpiry(opts)
       await MessageDialog('提示', res,'')
       LogPrint(res)
+      //runStatus.value = "设置完成"
     } catch (err) {
       console.error('SetExpiry error', err)
       await MessageDialog('错误', '设置文档时效请求失败：' + (err && err.message ? err.message : err), 'error')
+      //runStatus.value = "设置失败"
     } finally {
       sending.value = false
     }
@@ -845,6 +855,15 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   }
   .pwd-card .btn.primary{ background:#f3f6f9 }
   .pwd-card .btn.success{ background:#4caf50; color:#fff; border-color:#4caf50 }
+  .pwd-card .btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+  .run-status {
+    margin: 12px 0 0;
+    font-size: 13px;
+    color: #1a4c86;
+  }
 
   .modal-title {
     margin: 0 0 18px;
