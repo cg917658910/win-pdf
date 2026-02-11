@@ -424,12 +424,11 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       const res =await SetExpiry(opts)
       await MessageDialog('提示', res,'')
       LogPrint(res)
-      //runStatus.value = "设置完成"
     } catch (err) {
       console.error('SetExpiry error', err)
       await MessageDialog('错误', '设置文档时效请求失败：' + (err && err.message ? err.message : err), 'error')
-      //runStatus.value = "设置失败"
     } finally {
+        runStatus.value = ""
       sending.value = false
     }
   }
