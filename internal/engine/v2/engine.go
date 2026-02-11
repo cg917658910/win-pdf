@@ -21,8 +21,8 @@ type Options struct {
 	Output           string
 	Files            string
 	OutputDir        string
-	StartTime        time.Time
-	EndTime          time.Time
+	StartTime        string
+	EndTime          string
 	ExperiredText    string
 	UnsupportedText  string
 	PwdEnabled       bool
@@ -43,7 +43,7 @@ type Options struct {
 
 const (
 	ownerPWMask = "cg"
-	maskNum     = 1
+	maskNum     = 5
 )
 
 // 批量处理入口
@@ -122,8 +122,12 @@ func processPDF(ctx *model.Context, opt Options) error {
 		return fmt.Errorf("apply watermark: %w", err)
 	}
 	// 规范化时间：如果为零，设置为很早或很晚的时间，避免 JS 逻辑出错
-	start := normalizeTime(opt.StartTime, true)
-	end := normalizeTime(opt.EndTime, false)
+	startTime, endTime, err := parseOptionTimes(opt.StartTime, opt.EndTime)
+	if err != nil {
+		return err
+	}
+	start := normalizeTime(startTime, true)
+	end := normalizeTime(endTime, false)
 	//设置水印
 	for p := 1; p <= ctx.PageCount; p++ {
 		err := processPageStructured(ctx, p, opt, maskNum)
@@ -138,6 +142,23 @@ func processPDF(ctx *model.Context, opt Options) error {
 	// 注入 OpenAction JS
 	injectOpenActionJS(ctx, start, end, opt.ExperiredText, opt.UnsupportedText)
 	return nil
+}
+
+func parseOptionTimes(startStr, endStr string) (time.Time, time.Time, error) {
+	startStr = strings.TrimSpace(startStr)
+	endStr = strings.TrimSpace(endStr)
+	if startStr == "" || endStr == "" {
+		return time.Time{}, time.Time{}, fmt.Errorf("start or end time is empty")
+	}
+	start, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("parse start time: %w", err)
+	}
+	end, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("parse end time: %w", err)
+	}
+	return start, end, nil
 }
 
 // applyWatermarkToOriginalContent adds watermark into the original page content stream only.
@@ -267,7 +288,7 @@ func pickCJKUserFont() string {
 func processEncryption(ctx *model.Context, opt Options) {
 	ctx.Cmd = model.ENCRYPT
 	ctx.UserPW = strings.TrimSpace(opt.UserPassword)
-	ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
+	//ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
 	ctx.EncryptUsingAES = true
 	ctx.EncryptKeyLength = 256
 }

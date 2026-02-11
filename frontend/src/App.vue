@@ -293,6 +293,16 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       pwd.value = ""
       showPwdModal.value = false
     }
+    async function MessageDialogWithType(title, message) {
+      return MessageDialog(title, message, dialogTypeForTitle(title))
+    }
+    function dialogTypeForTitle(title) {
+      const t = String(title || "")
+      if (t.includes("错误")) return "error"
+      if (t.includes("警告")) return "warning"
+      if (t.includes("询问")) return "question"
+      return "info"
+    }
     function openWatermarkModal() {
       showWatermarkModal.value = true
     }
@@ -863,6 +873,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     color: #fff;
   }
   </style>
+
 
 
 

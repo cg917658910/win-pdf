@@ -104,13 +104,14 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 		return "", fmt.Errorf("错误：请选择输出目录")
 	}
 	// 3.有效期区间最短有1分钟，最高10年
-	if opts.StartTime.IsZero() || opts.EndTime.IsZero() {
+	startTime, endTime, err := parseISOTimeRange(opts.StartTime, opts.EndTime)
+	if err != nil {
 		return "", fmt.Errorf("错误：请设置有效的开始时间和结束时间")
 	}
-	if opts.EndTime.Sub(opts.StartTime) < 1*time.Minute {
+	if endTime.Sub(startTime) < 1*time.Minute {
 		return "", fmt.Errorf("错误：有效期区间最短为1分钟")
 	}
-	if opts.EndTime.Sub(opts.StartTime) > 100*365*24*time.Hour {
+	if endTime.Sub(startTime) > 100*365*24*time.Hour {
 		return "", fmt.Errorf("错误：有效期区间最长为100年")
 	}
 	// 至少6位
@@ -131,6 +132,23 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 	}
 
 	return fmt.Sprintf("所有文档设置成功"), nil
+}
+
+func parseISOTimeRange(startStr, endStr string) (time.Time, time.Time, error) {
+	startStr = strings.TrimSpace(startStr)
+	endStr = strings.TrimSpace(endStr)
+	if startStr == "" || endStr == "" {
+		return time.Time{}, time.Time{}, errors.New("empty time")
+	}
+	start, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	end, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	return start, end, nil
 }
 
 // IsRegistered 返回当前是否已注册（调用 internal/auth）
