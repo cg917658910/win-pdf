@@ -1,7 +1,8 @@
-﻿package engine
+package engine
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -225,10 +226,28 @@ func applyWatermarkToOriginalContent(ctx *model.Context, opt Options) error {
 }
 
 func addTiledWatermarks(ctx *model.Context, base *model.Watermark, spacing float64) error {
-	step := spacing
-	if step <= 0 {
-		step = 200
+	gap := spacing
+	if gap <= 0 {
+		gap = 200
 	}
+	stepX := gap
+	stepY := gap
+
+	// For horizontal text watermarks (rot ~= 0/180), center-to-center spacing
+	// can easily overlap glyphs. Increase step using text bounds + desired gap.
+	if base != nil && base.IsText() {
+		rot := math.Mod(math.Abs(base.Rotation), 180)
+		if rot < 0.01 || math.Abs(rot-180) < 0.01 {
+			w, h := estimateTextWatermarkBounds(base)
+			if w > 0 {
+				stepX = math.Max(stepX, w+gap)
+			}
+			if h > 0 {
+				stepY = math.Max(stepY, h+gap)
+			}
+		}
+	}
+
 	const maxPerPage = 400
 	m := map[int][]*model.Watermark{}
 	for p := 1; p <= ctx.PageCount; p++ {
@@ -247,10 +266,10 @@ func addTiledWatermarks(ctx *model.Context, base *model.Watermark, spacing float
 			continue
 		}
 		count := 0
-		startX := x0 + step/2
-		startY := y0 + step/2
-		endX := x1 - step/2
-		endY := y1 - step/2
+		startX := x0 + stepX/2
+		startY := y0 + stepY/2
+		endX := x1 - stepX/2
+		endY := y1 - stepY/2
 
 		// If spacing is larger than page size, tiling loops below won't produce any
 		// watermark. Ensure we still have one watermark centered on the page.
@@ -265,8 +284,8 @@ func addTiledWatermarks(ctx *model.Context, base *model.Watermark, spacing float
 			continue
 		}
 
-		for x := startX; x <= endX; x += step {
-			for y := startY; y <= endY; y += step {
+		for x := startX; x <= endX; x += stepX {
+			for y := startY; y <= endY; y += stepY {
 				wm := new(model.Watermark)
 				*wm = *base
 				// ensure each watermark has its own object/cache bookkeeping
@@ -302,6 +321,40 @@ func addTiledWatermarks(ctx *model.Context, base *model.Watermark, spacing float
 	}
 
 	return pdfcpu.AddWatermarksSliceMap(ctx, m)
+}
+
+func estimateTextWatermarkBounds(wm *model.Watermark) (float64, float64) {
+	if wm == nil || !wm.IsText() {
+		return 0, 0
+	}
+
+	lines := wm.TextLines
+	if len(lines) == 0 {
+		lines = strings.Split(wm.TextString, "\n")
+	}
+	if len(lines) == 0 {
+		return 0, 0
+	}
+
+	fontName := strings.TrimSpace(wm.FontName)
+	if fontName == "" {
+		fontName = "Helvetica"
+	}
+	fontSize := wm.FontSize
+	if fontSize <= 0 {
+		fontSize = 24
+	}
+
+	maxW := 0.0
+	for _, line := range lines {
+		w := pdffont.TextWidth(line, fontName, fontSize)
+		if w > maxW {
+			maxW = w
+		}
+	}
+	lineH := pdffont.LineHeight(fontName, fontSize)
+	totalH := lineH * float64(len(lines))
+	return maxW, totalH
 }
 
 func numToFloat(o types.Object) float64 {
