@@ -14,14 +14,14 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
 
 	js := fmt.Sprintf(`(function(){
   try{
-    if(this.__ocg_js_executed) return; this.__ocg_js_executed = true;
     var alertMsg = function(msg){
         if (typeof app !== "undefined" && app && typeof app.alert === "function") {
             app.alert({ cMsg: msg });
         }
   	};
+    //alertMsg("有效期PDF");
+    //if(this.__ocg_js_executed) return; this.__ocg_js_executed = true;
     // debugger;
-    // alertMsg("有效期PDF");
     var start = new Date("%s");
     var end = new Date("%s");
     var now = new Date();
@@ -34,6 +34,7 @@ func injectOpenActionJS(ctx *model.Context, start, end time.Time, experiredText,
         if (typeof this.getOCGs === "function") {
             return this.getOCGs();
         }
+        //alertMsg("无法获取 OCG 列表，可能无法正确显示水印和过期提示！");
         return null;
     };
     // 关闭所有 OCG

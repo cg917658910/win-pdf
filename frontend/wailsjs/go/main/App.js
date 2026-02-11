@@ -26,6 +26,10 @@ export function MessageDialog(arg1, arg2, arg3) {
   return window['go']['main']['App']['MessageDialog'](arg1, arg2, arg3);
 }
 
+export function OnDomReady(arg1) {
+  return window['go']['main']['App']['OnDomReady'](arg1);
+}
+
 export function OpenDirectoryAndListFiles() {
   return window['go']['main']['App']['OpenDirectoryAndListFiles']();
 }

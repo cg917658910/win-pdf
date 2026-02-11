@@ -33,6 +33,8 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.initFonts()
+}
+func (a *App) OnDomReady(ctx context.Context) {
 	a.showTrialMessage()
 }
 
