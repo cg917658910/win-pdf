@@ -125,21 +125,7 @@
           <div class="watermark-form">
             <label class="watermark-label">字体名称：</label>
             <select v-model="watermarkFontName" class="watermark-select">
-              <option value="Helvetica">Helvetica</option>
-              <option value="Helvetica-Bold">Helvetica-Bold</option>
-              <option value="Helvetica-Oblique">Helvetica-Oblique</option>
-              <option value="Times-Roman">Times-Roman</option>
-              <option value="Times-Bold">Times-Bold</option>
-              <option value="Times-Italic">Times-Italic</option>
-              <option value="Courier">Courier</option>
-              <option value="Courier-Bold">Courier-Bold</option>
-              <option value="Courier-Oblique">Courier-Oblique</option>
-              <option value="MicrosoftYaHei">MicrosoftYaHei</option>
-              <option value="SimSun">SimSun</option>
-              <option value="SimHei">SimHei</option>
-              <option value="FangSong">FangSong</option>
-              <option value="KaiTi">KaiTi</option>
-              <option value="DengXian">DengXian</option>
+              <option v-for="font in watermarkFontOptions" :key="font" :value="font">{{ font }}</option>
             </select>
             <label class="watermark-label">字体颜色：</label>
             <input v-model="watermarkColor" type="color" class="watermark-color" />
@@ -161,10 +147,13 @@
             <input v-model="watermarkRotation" type="number" class="watermark-number" min="-180" max="180" />
             <label class="watermark-label">透明度：</label>
             <input v-model="watermarkOpacity" type="number" class="watermark-number" step="0.05" min="0" max="1" />
-            <label class="watermark-label">偏移X：</label>
-            <input v-model="watermarkOffsetX" type="number" class="watermark-number" />
-            <label class="watermark-label">偏移Y：</label>
-            <input v-model="watermarkOffsetY" type="number" class="watermark-number" />
+            <label class="watermark-label">间距：</label>
+            <input v-model="watermarkSpacing" type="number" class="watermark-number" min="50" max="1000" />
+            <label class="watermark-label">铺满页面：</label>
+            <label class="watermark-toggle-inline">
+              <input v-model="watermarkTiled" type="checkbox" />
+              多处水印
+            </label>
            <!--  <label class="watermark-label">不嵌入字体：</label>
             <label class="watermark-toggle-inline">
               <input v-model="watermarkNoEmbed" type="checkbox" />
@@ -183,7 +172,7 @@
   </template>
   
   <script setup>
-  import { onMounted, ref } from "vue"
+  import { computed, onMounted, ref } from "vue"
 import { GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryAndListFiles, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
 import { engine } from "../wailsjs/go/models"
 import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.js"
@@ -212,9 +201,32 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const watermarkOpacity = ref(0.3)
   const watermarkColor = ref("#808080")
   const watermarkPos = ref("c")
-  const watermarkOffsetX = ref(0)
-  const watermarkOffsetY = ref(0)
+  const watermarkSpacing = ref(200)
+  const watermarkTiled = ref(false)
   const watermarkNoEmbed = ref(true)
+  const latinWatermarkFonts = [
+    "Helvetica",
+    "Helvetica-Bold",
+    "Helvetica-Oblique",
+    "Times-Roman",
+    "Times-Bold",
+    "Times-Italic",
+    "Courier",
+    "Courier-Bold",
+    "Courier-Oblique",
+  ]
+  const cjkWatermarkFonts = [
+    "MicrosoftYaHei",
+    "SimSun",
+    "SimHei",
+    "FangSong",
+    "KaiTi",
+    "DengXian",
+  ]
+  const watermarkFontOptions = computed(() => {
+    if (/[^\x00-\x7F]/.test(watermarkText.value || "")) return cjkWatermarkFonts
+    return [...latinWatermarkFonts, ...cjkWatermarkFonts]
+  })
   
   const unsupportedText = ref(
     "文档显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！"
@@ -328,23 +340,13 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       const opacity = Math.min(1, Math.max(0, Number(watermarkOpacity.value) || 0.3))
       const color = (watermarkColor.value || "#808080").trim()
       const pos = (watermarkPos.value || "c").trim()
-      const offX = Number(watermarkOffsetX.value) || 0
-      const offY = Number(watermarkOffsetY.value) || 0
-      const fontName = needsCJKFont(watermarkText.value, pickedFont) ? "MicrosoftYaHei" : pickedFont
+      const hasCJK = /[^\x00-\x7F]/.test(watermarkText.value || "")
+      const fontName = hasCJK
+        ? (cjkWatermarkFonts.includes(pickedFont) ? pickedFont : "MicrosoftYaHei")
+        : pickedFont
       const noEmbed = watermarkNoEmbed.value && /[^\x00-\x7F]/.test(watermarkText.value || "")
       const scriptName = noEmbed ? ", scriptname:HANS" : ""
-      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:${pos}, off:${offX} ${offY}${scriptName}`
-    }
-    function needsCJKFont(text, fontName) {
-      if (!text || !/[^\x00-\x7F]/.test(text)) return false
-      return (
-        fontName === "Helvetica" ||
-        fontName === "Helvetica-Oblique" ||
-        fontName === "Times-Roman" ||
-        fontName === "Times-Italic" ||
-        fontName === "Courier" ||
-        fontName === "Courier-Oblique"
-      )
+      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:${pos}${scriptName}`
     }
   async function setExpire() {
     // 直接提交给后端，不再选择保存路径
@@ -382,6 +384,8 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     opts.WatermarkEnabled = watermarkEnabled.value
     opts.WatermarkText = watermarkText.value
     opts.WatermarkDesc = watermarkDesc.value
+    opts.WatermarkTiled = watermarkTiled.value
+    opts.WatermarkSpacing = Number(watermarkSpacing.value) || 0
     if(options.value.expiredTip){
       opts.ExperiredText = expiredText.value
     }

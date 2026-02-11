@@ -15,6 +15,8 @@ export namespace engine {
 	    WatermarkEnabled: boolean;
 	    WatermarkText: string;
 	    WatermarkDesc: string;
+	    WatermarkTiled: boolean;
+	    WatermarkSpacing: number;
 	    AllowedPrint: boolean;
 	    AllowedCopy: boolean;
 	    AllowedEdit: boolean;
@@ -40,6 +42,8 @@ export namespace engine {
 	        this.WatermarkEnabled = source["WatermarkEnabled"];
 	        this.WatermarkText = source["WatermarkText"];
 	        this.WatermarkDesc = source["WatermarkDesc"];
+	        this.WatermarkTiled = source["WatermarkTiled"];
+	        this.WatermarkSpacing = source["WatermarkSpacing"];
 	        this.AllowedPrint = source["AllowedPrint"];
 	        this.AllowedCopy = source["AllowedCopy"];
 	        this.AllowedEdit = source["AllowedEdit"];

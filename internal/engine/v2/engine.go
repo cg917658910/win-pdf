@@ -31,6 +31,8 @@ type Options struct {
 	WatermarkEnabled bool
 	WatermarkText    string
 	WatermarkDesc    string
+	WatermarkTiled   bool
+	WatermarkSpacing float64
 
 	// 打印/复制
 	AllowedPrint bool
@@ -177,7 +179,101 @@ func applyWatermarkToOriginalContent(ctx *model.Context, opt Options) error {
 	if err != nil {
 		return err
 	}
-	return pdfcpu.AddWatermarks(ctx, nil, wm)
+	if !opt.WatermarkTiled {
+		return pdfcpu.AddWatermarks(ctx, nil, wm)
+	}
+	return addTiledWatermarks(ctx, wm, opt.WatermarkSpacing)
+}
+
+func addTiledWatermarks(ctx *model.Context, base *model.Watermark, spacing float64) error {
+	step := spacing
+	if step <= 0 {
+		step = 200
+	}
+	const maxPerPage = 400
+	m := map[int][]*model.Watermark{}
+	for p := 1; p <= ctx.PageCount; p++ {
+		pageDict, _, _, err := ctx.PageDict(p, true)
+		if err != nil || pageDict == nil {
+			return fmt.Errorf("get page dict: %w", err)
+		}
+		mb := getPageMediaBox(pageDict)
+		x0 := numToFloat(mb[0])
+		y0 := numToFloat(mb[1])
+		x1 := numToFloat(mb[2])
+		y1 := numToFloat(mb[3])
+		pageW := x1 - x0
+		pageH := y1 - y0
+		if pageW <= 0 || pageH <= 0 {
+			continue
+		}
+		count := 0
+		startX := x0 + step/2
+		startY := y0 + step/2
+		endX := x1 - step/2
+		endY := y1 - step/2
+
+		// If spacing is larger than page size, tiling loops below won't produce any
+		// watermark. Ensure we still have one watermark centered on the page.
+		if startX > endX || startY > endY {
+			wm := new(model.Watermark)
+			*wm = *base
+			wm.Objs = types.IntSet{}
+			wm.Pos = types.BottomLeft
+			wm.Dx = types.ToUserSpace(pageW/2, wm.InpUnit)
+			wm.Dy = types.ToUserSpace(pageH/2, wm.InpUnit)
+			m[p] = append(m[p], wm)
+			continue
+		}
+
+		for x := startX; x <= endX; x += step {
+			for y := startY; y <= endY; y += step {
+				wm := new(model.Watermark)
+				*wm = *base
+				// ensure each watermark has its own object/cache bookkeeping
+				wm.Objs = types.IntSet{}
+				wm.Pos = types.BottomLeft
+				wm.Dx = types.ToUserSpace(x-x0, wm.InpUnit)
+				wm.Dy = types.ToUserSpace(y-y0, wm.InpUnit)
+				m[p] = append(m[p], wm)
+				count++
+				if count >= maxPerPage {
+					break
+				}
+			}
+			if count >= maxPerPage {
+				break
+			}
+		}
+	}
+
+	// pdfcpu's slice-map path resolves text fonts without script info.
+	// For CJK no-embed watermarks (ScriptName set), add per page/per watermark
+	// to preserve script-based font encoding.
+	if strings.TrimSpace(base.ScriptName) != "" {
+		for p, wms := range m {
+			sel := types.IntSet{p: true}
+			for _, wm := range wms {
+				if err := pdfcpu.AddWatermarks(ctx, sel, wm); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	return pdfcpu.AddWatermarksSliceMap(ctx, m)
+}
+
+func numToFloat(o types.Object) float64 {
+	switch v := o.(type) {
+	case types.Float:
+		return float64(v)
+	case types.Integer:
+		return float64(v)
+	default:
+		return 0
+	}
 }
 
 func ensureCJKFontForWatermark(text, desc string) string {
