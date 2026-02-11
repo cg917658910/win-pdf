@@ -133,7 +133,7 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 		return "", fmt.Errorf("%v", err)
 	}
 
-	return fmt.Sprintf("所有文档设置成功"), nil
+	return fmt.Sprintf("   所有文档设置成功!"), nil
 }
 
 func parseISOTimeRange(startStr, endStr string) (time.Time, time.Time, error) {
@@ -263,11 +263,15 @@ func (a *App) OpenMultipleFilesDialog() ([]string, error) {
 
 // MessageDialog 使用 Wails 原生对话框显示消息并返回用户选择结果
 func (a *App) MessageDialog(title, message, dialogType string) (string, error) {
-	res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{
+	msgDialogOpts := rt.MessageDialogOptions{
 		Title:   title,
 		Message: message,
-		Type:    mapDialogType(dialogType),
-	})
+	}
+
+	if dialogType != "" {
+		msgDialogOpts.Type = mapDialogType(dialogType)
+	}
+	res, err := rt.MessageDialog(a.ctx, msgDialogOpts)
 	if err != nil {
 		rt.LogPrintf(a.ctx, "MessageDialog error: %v", err)
 		return "", err

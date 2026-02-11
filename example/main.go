@@ -16,8 +16,8 @@ func main() {
 	opts := eng.Options{
 		Input:           in,
 		Output:          out,
-		StartTime:       start,
-		EndTime:         end,
+		StartTime:       start.Format(time.RFC3339),
+		EndTime:         end.Format(time.RFC3339),
 		UnsupportedText: "文件显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！",
 		UserPassword:    "",
 		//PwdEnabled:      true,

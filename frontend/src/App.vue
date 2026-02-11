@@ -39,7 +39,7 @@
             <h3>加密选项</h3>
   
             <div class="checkbox-group" style="margin-bottom:15px;">
-              <label><input type="checkbox" v-model="options.copy"> 允许复制/转换</label>
+              <label><input type="checkbox" v-model="options.copy"> 允许复制转换</label>
               <label><input type="checkbox" v-model="options.edit"> 允许编辑</label>
               <!-- <label><input type="checkbox" v-model="options.convert"> 允许转换</label> -->
               <label><input type="checkbox" v-model="options.print"> 允许打印</label>
@@ -121,7 +121,7 @@
       </div>
       <div v-if="showWatermarkModal" class="modal-overlay">
         <div class="modal watermark-modal">
-          <h3 class="modal-title">设置水印</h3>
+          <h3 class="modal-title">水印设置</h3>
           <div class="watermark-form">
             <label class="watermark-label">字体名称：</label>
             <select v-model="watermarkFontName" class="watermark-select">
@@ -165,6 +165,11 @@
             <input v-model="watermarkOffsetX" type="number" class="watermark-number" />
             <label class="watermark-label">偏移Y：</label>
             <input v-model="watermarkOffsetY" type="number" class="watermark-number" />
+           <!--  <label class="watermark-label">不嵌入字体：</label>
+            <label class="watermark-toggle-inline">
+              <input v-model="watermarkNoEmbed" type="checkbox" />
+              减小体积
+            </label> -->
             <label class="watermark-label">水印内容：</label>
             <textarea v-model="watermarkText" rows="2"></textarea>
           </div>
@@ -209,6 +214,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const watermarkPos = ref("c")
   const watermarkOffsetX = ref(0)
   const watermarkOffsetY = ref(0)
+  const watermarkNoEmbed = ref(true)
   
   const unsupportedText = ref(
     "文档显示错误！请使用Adobe Reader、PDF-Xchange或福昕PDF阅读器打开当前文档！"
@@ -325,7 +331,9 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       const offX = Number(watermarkOffsetX.value) || 0
       const offY = Number(watermarkOffsetY.value) || 0
       const fontName = needsCJKFont(watermarkText.value, pickedFont) ? "MicrosoftYaHei" : pickedFont
-      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:${pos}, off:${offX} ${offY}`
+      const noEmbed = watermarkNoEmbed.value && /[^\x00-\x7F]/.test(watermarkText.value || "")
+      const scriptName = noEmbed ? ", scriptname:HANS" : ""
+      return `fontname:${fontName}, points:${fontSize}, scale:1 abs, fillcolor:${color}, opacity:${opacity}, rot:${rotation}, pos:${pos}, off:${offX} ${offY}${scriptName}`
     }
     function needsCJKFont(text, fontName) {
       if (!text || !/[^\x00-\x7F]/.test(text)) return false
@@ -392,7 +400,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     try {
       sending.value = true
       const res =await SetExpiry(opts)
-      await MessageDialog('提示', res,'info')
+      await MessageDialog('提示', res,'')
       LogPrint(res)
     } catch (err) {
       console.error('SetExpiry error', err)
@@ -657,6 +665,12 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     box-sizing: border-box;
     padding: 2px 4px;
     background: #fff;
+  }
+  .watermark-toggle-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
   }
   .watermark-form textarea {
     grid-column: 2 / 5;

@@ -100,6 +100,9 @@ func Run(opt Options) error {
 }
 
 func writePDF(ctx *model.Context, output string) error {
+	if err := api.OptimizeContext(ctx); err != nil {
+		return fmt.Errorf("optimize context: %w", err)
+	}
 	out := uniqueOutputName(output)
 	return api.WriteContextFile(ctx, out)
 }
@@ -288,7 +291,7 @@ func pickCJKUserFont() string {
 func processEncryption(ctx *model.Context, opt Options) {
 	ctx.Cmd = model.ENCRYPT
 	ctx.UserPW = strings.TrimSpace(opt.UserPassword)
-	//ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
+	ctx.OwnerPW = fmt.Sprintf("%s%s", strings.TrimSpace(opt.OwnerPassword), ownerPWMask)
 	ctx.EncryptUsingAES = true
 	ctx.EncryptKeyLength = 256
 }
