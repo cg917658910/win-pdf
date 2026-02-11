@@ -35,17 +35,9 @@ func (a *App) startup(ctx context.Context) {
 	a.initFonts()
 }
 func (a *App) OnDomReady(ctx context.Context) {
-	a.showTrialMessage()
 }
 
-// 弹窗提示试用中
-func (a *App) showTrialMessage() {
-	rt.MessageDialog(a.ctx, rt.MessageDialogOptions{
-		Title:   "易诚无忧提示",
-		Message: "当前处于试用阶段！",
-	})
-}
-func (a *App) initConfig() {
+/* func (a *App) initConfig() {
 	pubPath := "./confg/server_public.pem"
 	if _, err := os.Stat(pubPath); err != nil {
 		rt.LogErrorf(a.ctx, "公钥文件 %s 未找到 err %s", pubPath, err)
@@ -53,7 +45,7 @@ func (a *App) initConfig() {
 	if err := license.LoadPublicKeyFromFile(pubPath); err != nil {
 		rt.LogErrorf(a.ctx, "加载公钥失败: %v", err)
 	}
-}
+} */
 
 // initFonts tries to install common Windows CJK fonts for watermark rendering.
 func (a *App) initFonts() {
@@ -133,7 +125,7 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 		return "", fmt.Errorf("%v", err)
 	}
 
-	return fmt.Sprintf("   所有文档设置成功!"), nil
+	return fmt.Sprintf("    所有文档设置成功！"), nil
 }
 
 func parseISOTimeRange(startStr, endStr string) (time.Time, time.Time, error) {
@@ -381,7 +373,7 @@ func NewAppMenu(app *App) *menu.Menu {
 		//显示邮箱地址
 		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 			Title:   "联系我们",
-			Message: "如有任何问题或建议，请联系邮箱：dream9188@163.com",
+			Message: "如有任何问题或建议，请联系邮箱：dream9188@163.com。",
 		})
 	})
 	/* registerMenu.AddText("注销", nil, func(_ *menu.CallbackData) {

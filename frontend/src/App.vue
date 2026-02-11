@@ -95,14 +95,15 @@
       <div v-if="showRegisterModal" class="modal-overlay">
         <div class="modal register-modal">
           <h3 class="modal-title">在线注册</h3>
-          <div class="register-section">
-            <div class="register-label register-label-center">机器码：</div>
+          <div class="register-form">
+            <div class="register-label">机器码：</div>
             <div class="register-machine-row">
               <span class="register-machine-value">{{ machineCode }}</span>
               <button class="register-copy-btn" @click="copyMachineCode">复制</button>
             </div>
+            <div class="register-label">注册码：</div>
+            <input class="register-input" v-model="activationCode" placeholder="请输入注册码" />
           </div>
-          <input class="register-input" v-model="activationCode" placeholder="输入注册码" />
           <div class="register-actions">
             <button class="register-btn register-btn-primary" @click="onRegister" :disabled="registerLoading">注册</button>
             <button class="register-btn" @click="onCancel" :disabled="registerLoading">取消</button>
@@ -147,13 +148,13 @@
             <input v-model="watermarkRotation" type="number" class="watermark-number" min="-180" max="180" />
             <label class="watermark-label">透明度：</label>
             <input v-model="watermarkOpacity" type="number" class="watermark-number" step="0.05" min="0" max="1" />
-            <label class="watermark-label">间距：</label>
+            <label class="watermark-label">设置间距：</label>
             <input v-model="watermarkSpacing" type="number" class="watermark-number" min="50" max="1000" />
             <label class="watermark-label">铺满页面：</label>
-            <label class="watermark-toggle-inline">
-              <input v-model="watermarkTiled" type="checkbox" />
-              多处水印
-            </label>
+            <select v-model="watermarkTiled" class="watermark-select">
+              <option :value="false">否</option>
+              <option :value="true">是</option>
+            </select>
            <!--  <label class="watermark-label">不嵌入字体：</label>
             <label class="watermark-toggle-inline">
               <input v-model="watermarkNoEmbed" type="checkbox" />
@@ -172,7 +173,7 @@
   </template>
   
   <script setup>
-  import { computed, onMounted, ref } from "vue"
+  import { computed, onMounted, ref, watch } from "vue"
 import { GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryAndListFiles, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
 import { engine } from "../wailsjs/go/models"
 import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.js"
@@ -226,6 +227,15 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const watermarkFontOptions = computed(() => {
     if (/[^\x00-\x7F]/.test(watermarkText.value || "")) return cjkWatermarkFonts
     return [...latinWatermarkFonts, ...cjkWatermarkFonts]
+  })
+
+  watch(watermarkText, (val) => {
+    if (/[^\x00-\x7F]/.test(val || "")) {
+      const picked = (watermarkFontName.value || "").trim()
+      if (!cjkWatermarkFonts.includes(picked)) {
+        watermarkFontName.value = "MicrosoftYaHei"
+      }
+    }
   })
   
   const unsupportedText = ref(
@@ -491,6 +501,8 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       EventsOn('user:filesSelected', async (newPaths) => {
         addFilesAndUnique(newPaths)
       })
+      // 提示试用
+      await MessageDialog('易诚无忧提示', '当前处于试用阶段！', 'info')
     } catch (e) {
       console.debug('EventsOn error', e)
     }
@@ -498,13 +510,17 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   </script>
   
   <style scoped>
-  .app-container {
-    font-family: "Microsoft YaHei", sans-serif;
-    padding: 10px;
-    color: #222;
-    background: linear-gradient(180deg, #f7f9fb 0%, #eef3f8 100%);
-    padding-bottom: 44px;
-  }
+.app-container {
+  font-family: "Microsoft YaHei", sans-serif;
+  padding: 10px;
+  color: #222;
+  background: linear-gradient(180deg, #f7f9fb 0%, #eef3f8 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  --footer-h: 88px;
+}
   
   .top-tabs {
     display: flex;
@@ -524,23 +540,28 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     border-bottom: 2px solid #333;
   }
   
-  .main {
-    display: flex;
-    /* 让左右区域在窗口高度内布局，避免被文件列表撑高 */
-    height: calc(100vh - 80px);
-    box-sizing: border-box;
-  }
+.main {
+  display: flex;
+  /* 让左右区域在窗口高度内布局，避免被文件列表撑高 */
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: var(--footer-h); /* 预留底部固定版权高度 */
+  gap: 10px;
+}
   
-  .left-panel {
-    width: 45%;
-    border: 1px solid #ddd;
-    padding: 10px;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    /* 让内部使用列布局，文件列表占据剩余高度可滚动 */
-    display: flex;
-    flex-direction: column;
-  }
+.left-panel {
+  flex: 0 0 45%;
+  max-width: 45%;
+  border: 1px solid #ddd;
+  padding: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  /* 让内部使用列布局，文件列表占据剩余高度可滚动 */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
   
   .action-buttons {
     display: flex;
@@ -597,19 +618,24 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     margin-top: 10px;
   }
   
-  .right-panel {
-    width: 55%;
-    padding-left: 10px;
-    /* 与左侧同高，内部自然滚动页面 */
-    box-sizing: border-box;
-  }
+.right-panel {
+  flex: 1 1 0;
+  min-width: 0;
+  /* 与左侧同高，内部自然滚动页面 */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
+}
   
-  .card {
-    border: 1px solid #eee;
-    padding: 10px;
-    margin-bottom: 15px;
-    background:#fff;
-  }
+.card {
+  border: 1px solid #eee;
+  padding: 10px;
+  margin-bottom: 0;
+  background:#fff;
+}
   .card-b {
     border: 1px solid #eee;
     padding: 10px;
@@ -712,18 +738,20 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   .time-row input[type="datetime-local"] {
     min-width: 200px;          /* 让两个时间输入宽度一致、更好看 */
   }
-  .logo {
-    align-items: center;
-    gap: 10px;
-    margin-top: 20px;
-  }
-  
-  .logo img {
-    width: 120px;
-    max-width: 100%;
-    height: auto;
-    margin-bottom: 10px;
-  }
+.logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0;
+}
+
+.logo img {
+  height: 32px;
+  width: auto;
+  max-width: 100%;
+  margin-bottom: 4px;
+}
   
   .cn {
     font-size: 18px;
@@ -734,19 +762,30 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     font-size: 14px;
   }
 
-  .app-footer {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    text-align: center;
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #888;
-    background: rgba(255,255,255,0.85);
-    border-top: 1px solid rgba(0,0,0,0.04);
-    z-index: 9999;
-  }
+.app-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--footer-h);
+  box-sizing: border-box;
+  text-align: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #888;
+  background: rgba(255,255,255,0.85);
+  border-top: 1px solid rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+:global(html, body, #app) {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
 
   .modal-overlay {
     position: fixed;
@@ -773,18 +812,20 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   .copy-btn { padding:4px 8px; border:1px solid #cfcfcf; background:#fff; cursor:pointer }
 
   /* 用户密码卡居中显示并圆角 */
-  .pwd-card {
-    margin: 12px auto 0; /* 水平居中并与下方间距 */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-    text-align: center;
-    padding: 14px;
-    border: 1px solid rgba(0,0,0,0.06);
-    background: #fff;
-    min-height: 100px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center; /* 垂直居中 */
-  }
+.pwd-card {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  text-align: center;
+  padding: 18px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: #fff;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* 垂直居中 */
+}
 
   .pwd-card .pwd-row {
     display: flex;
@@ -816,18 +857,18 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     padding: 26px 32px 22px;
   }
 
-  .register-section {
-    margin-bottom: 16px;
+  .register-form {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 14px 12px;
+    align-items: center;
+    margin-bottom: 10px;
   }
 
   .register-label {
     font-size: 14px;
-    margin-bottom: 6px;
-  }
-
-  .register-label-center {
-    text-align: center;
-    font-weight: 500;
+    text-align: right;
+    color: #222;
   }
 
   .register-machine-row {
@@ -852,7 +893,6 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   .register-input {
     width: 100%;
     padding: 10px 10px;
-    margin-top: 4px;
     box-sizing: border-box;
     border-radius: 4px;
     border: 1px solid #d0d0d0;
