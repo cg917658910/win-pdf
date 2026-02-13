@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM 构建 64 位
 echo Building 64-bit...
-wails build -platform windows/amd64
+wails build -platform windows/amd64 -nsis
 if errorlevel 1 (
   echo 64-bit build failed.
   goto end
@@ -11,7 +11,7 @@ if errorlevel 1 (
 
 REM 构建 32 位
 echo Building 32-bit...
-wails build -platform windows/386 -o win-pdf-32bit.exe
+wails build -platform windows/386 -o  win-pdf-32bit.exe 
 if errorlevel 1 (
   echo 32-bit build failed.
   goto end

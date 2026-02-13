@@ -145,7 +145,7 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 		return "", fmt.Errorf("%v", err)
 	}
 
-	return fmt.Sprintf("    所有文档设置成功！"), nil
+	return fmt.Sprintf("        所有文档设置成功！"), nil
 }
 
 func parseISOTimeRange(startStr, endStr string) (time.Time, time.Time, error) {
@@ -393,7 +393,7 @@ func NewAppMenu(app *App) *menu.Menu {
 		//显示邮箱地址
 		rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
 			Title:   "联系我们",
-			Message: "	如有任何问题或建议，请联系邮箱：dream9188@163.com。",
+			Message: "       如有任何问题或建议，请联系邮箱：dream9188@163.com。",
 		})
 	})
 	/* registerMenu.AddText("注销", nil, func(_ *menu.CallbackData) {
