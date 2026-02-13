@@ -111,8 +111,6 @@ func (a *App) BeforeSetExpiry(opts engine.Options) (string, error) {
 
 // 设置有效期
 func (a *App) SetExpiry(opts engine.Options) (string, error) {
-	// 1.Files最少1个，最多上传10个，;这个隔开的
-	filesNum := strings.Count(opts.Files, ";") + 1
 	// 2.OutputDir不能为空
 	if strings.TrimSpace(opts.OutputDir) == "" {
 		return "", fmt.Errorf("错误：请选择输出目录")
@@ -137,8 +135,21 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 	if err != nil {
 		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err)
 	}
-	if !isActivated && filesNum > 1 {
-		return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能。")
+	paths := strings.Split(opts.Files, ";")
+	if !isActivated {
+		if len(paths) > 1 {
+			return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能。")
+		}
+		for _, p := range paths {
+			info, err := os.Stat(p)
+			if err != nil {
+				rt.LogPrintf(a.ctx, "获取文件信息失败: %v", err)
+				return "", errors.New("获取文件信息失败")
+			}
+			if info.Size() > 500*1024 {
+				return "", errors.New("未注册用户单个文件大小不能超过500KB,请注册后使用更多功能。")
+			}
+		}
 	}
 	successCount, err := engine.RunBatch(opts)
 	if successCount == 0 && err != nil {
