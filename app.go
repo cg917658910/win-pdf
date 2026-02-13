@@ -81,18 +81,38 @@ func (a *App) initFonts() {
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
+func (a *App) BeforeSetExpiry(opts engine.Options) (string, error) {
+	// 检查上传文件总大小，超过1GB则提示用户继续或者取消操作
+	totalSize := int64(0)
+	files := strings.Split(opts.Files, ";")
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil {
+			rt.LogPrintf(a.ctx, "获取文件信息失败: %v", err)
+			continue
+		}
+		totalSize += info.Size()
+	}
+	dialogSize := 1 * 1024 * 1024 * 1024 // 1GB
+	if totalSize > int64(dialogSize) {
+		// 提示用户继续或者取消操作
+		res, err := rt.MessageDialog(a.ctx, rt.MessageDialogOptions{
+			Title:   "文件过大",
+			Message: fmt.Sprintf("当前添加的文档累计大小超过了1GB，如果在加密过程中出现电脑卡顿、死机或加密等待时间过长等现象，请退出程序同时减少文件数量并再次尝试加密；如果是单个文档请压缩后再次尝试加密，谢谢配合！"),
+		})
+		if err != nil {
+			rt.LogPrintf(a.ctx, "MessageDialog error: %v", err)
+			return "", err
+		}
+		return res, nil
+	}
+	return "继续操作", nil
+}
 
 // 设置有效期
 func (a *App) SetExpiry(opts engine.Options) (string, error) {
-	rt.LogPrintf(a.ctx, "设置有效期: %+v", opts)
-	// do something
-	// 检查opts.Files和opts.OutputDir
-	// Todo:
 	// 1.Files最少1个，最多上传10个，;这个隔开的
 	filesNum := strings.Count(opts.Files, ";") + 1
-	if filesNum < 1 || filesNum > 100 {
-		return "", fmt.Errorf("错误：请选择1到100个文件，当前选择了%d个文件", filesNum)
-	}
 	// 2.OutputDir不能为空
 	if strings.TrimSpace(opts.OutputDir) == "" {
 		return "", fmt.Errorf("错误：请选择输出目录")
@@ -118,7 +138,7 @@ func (a *App) SetExpiry(opts engine.Options) (string, error) {
 		rt.LogPrintf(a.ctx, "检查注册状态失败: %v", err)
 	}
 	if !isActivated && filesNum > 1 {
-		return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能")
+		return "", fmt.Errorf("错误：未注册用户只能处理1个文件，请注册后使用更多功能。")
 	}
 	successCount, err := engine.RunBatch(opts)
 	if successCount == 0 && err != nil {

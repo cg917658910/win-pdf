@@ -22,7 +22,7 @@
             <div class="file-item" v-for="(file, index) in files" :key="index">
               <span>{{ file.name }}</span>
               <span class="path">{{ file.path }}</span>
-             <button @click="removeFile(index)" style="margin-left:8px">删除</button>
+             <button class="delete-btn" @click="removeFile(index)">删除</button>
             </div>
           </div>
   
@@ -97,9 +97,8 @@
       <!-- 注册模块-->
       <div v-if="showRegisterModal" class="modal-overlay">
         <div class="modal register-modal">
-          <h3 class="modal-title">在线注册</h3>
           <div class="register-form">
-            <div class="register-label">机器码：</div>
+            <div class="register-machine-label">机器码：</div>
             <div class="register-machine-row">
               <span class="register-machine-value">{{ machineCode }}</span>
               <button class="register-copy-btn" @click="copyMachineCode">复制</button>
@@ -108,7 +107,7 @@
             <input class="register-input" v-model="activationCode" placeholder="请输入注册码" />
           </div>
           <div class="register-actions">
-            <button class="register-btn register-btn-primary" @click="onRegister" :disabled="registerLoading">注册</button>
+            <button class="register-btn register-btn-primary" @click="onRegister" :disabled="registerLoading">确定</button>
             <button class="register-btn" @click="onCancel" :disabled="registerLoading">取消</button>
           </div>
         </div>
@@ -177,7 +176,7 @@
   
   <script setup>
   import { computed, onMounted, ref, watch } from "vue"
-import { GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryAndListFiles, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
+import { BeforeSetExpiry, GetMachineCode, GetTitleWithRegStatus, IsRegistered, MessageDialog, OpenDirectoryAndListFiles, OpenDirectoryDialog, OpenMultipleFilesDialog, Register, SetExpiry } from "../wailsjs/go/main/App.js"
 import { engine } from "../wailsjs/go/models"
 import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.js"
   
@@ -205,7 +204,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
   const watermarkOpacity = ref(0.3)
   const watermarkColor = ref("#808080")
   const watermarkPos = ref("c")
-  const watermarkSpacing = ref(200)
+  const watermarkSpacing = ref(100)
   const watermarkTiled = ref(false)
   const watermarkNoEmbed = ref(true)
   const latinWatermarkFonts = [
@@ -417,7 +416,8 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     // 用户密码绑定
     opts.PwdEnabled = pwdEnabled.value
     opts.UserPassword = pwd.value
-
+    // 检查上传文件总大小，超过1GB则提示用户继续或者取消操作
+    await BeforeSetExpiry(opts)
     try {
       sending.value = true
       runStatus.value = "正在批量设置，请稍候..."
@@ -478,8 +478,9 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       await MessageDialog('错误', '复制失败：' + (e && e.message ? e.message : e), 'error')
     }
   }
-
   onMounted(async () => {
+     // 提示试用
+     await MessageDialog('易诚无忧提示', '当前处于试用阶段！', 'info')
     // 获取并显示机器码
     try {
       machineCode.value = await GetMachineCode()
@@ -510,8 +511,6 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
       EventsOn('user:filesSelected', async (newPaths) => {
         addFilesAndUnique(newPaths)
       })
-      // 提示试用
-      await MessageDialog('易诚无忧提示', '当前处于试用阶段！', 'info')
     } catch (e) {
       console.debug('EventsOn error', e)
     }
@@ -612,6 +611,23 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     width: 64px;           /* 删除按钮固定宽度，保证完全显示*/
     padding: 6px 0;
   }
+
+  /* 新：更小、半透明、圆角的删除按钮样式 */
+  .delete-btn {
+    margin-left: 8px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    border: 1px solid #d0d0d0;
+    background:#f3f6f9;
+   
+    font-size: 11px; /* 删除文字略小以匹配缩小后按钮 */
+    height: 30px;
+    min-width: 56px;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background .12s, transform .06s;
+  }
+  
   
   .file-item + .file-item{margin-top:6px}
   .file-item:hover{background:#f0f6ff}
@@ -877,44 +893,79 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
 
   .register-form {
     display: grid;
-    grid-template-columns: 70px 1fr;
+    grid-template-columns: 60px 1fr;
     gap: 14px 12px;
     align-items: center;
     margin-bottom: 10px;
   }
 
   .register-label {
-    font-size: 14px;
+    padding-top: 10px;
+    font-size: 13px;
     text-align: right;
     color: #222;
+    align-self: center; /* 垂直居中对齐输入区域 */
+  }
+  .register-machine-label {
+    font-size: 13px;
+    text-align: right;
+    color: #222;
+    align-self: center; /* 垂直居中对齐输入区域 */
   }
 
+  /* 将机器码行改为 grid，使机器码显示区域与下方输入框左右对齐 */
   .register-machine-row {
-    display:flex;
-    align-items:center;
-    gap:10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
   }
 
   .register-machine-value {
-    flex: 1 1 auto;
+    width: 100%;
     font-family: monospace;
     background:#f4f4f4;
-    padding:6px 10px;
+    padding: 8px 10px;
     border-radius:4px;
     color:#333;
-    font-size: 13px;
+    font-size: 13px; /* 与输入框保持一致 */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  .register-input-wrapper {
+    position: relative;
   }
 
   .register-input {
     width: 100%;
-    padding: 10px 10px;
+    padding: 8px 10px;
     box-sizing: border-box;
     border-radius: 4px;
     border: 1px solid #d0d0d0;
-    font-size: 14px;
+    font-size: 13px;      /* 与机器码保持一致 */
+    font-family: monospace; /* 与机器码保持一致 */
+    height: auto;
+  }
+
+  .register-input-label-overlay {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    font-family: monospace;
+    color: #666;
+    pointer-events: none;
+    transition: opacity .12s;
+  }
+
+  .register-input:focus + .register-input-label-overlay,
+  .register-input:not(:placeholder-shown) + .register-input-label-overlay {
+    opacity: 0;
   }
 
   .register-actions {
@@ -940,7 +991,7 @@ import { EventsOn, LogPrint, WindowSetTitle } from "../wailsjs/runtime/runtime.j
     background: #fff;
     cursor: pointer;
     min-width: 86px;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .register-btn-primary {
